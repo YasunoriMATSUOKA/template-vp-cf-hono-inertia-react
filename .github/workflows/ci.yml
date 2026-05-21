@@ -28,7 +28,8 @@ jobs:
       # CI 内だけ severity を error → warn に下げる。CLI flag や env では伝播しないので
       # workspace.yaml を直接書き換える (CI VM 内で完結、commit しない)。
       - name: Tolerate verify-deps drift in CI
-        run: sed -i 's/^verifyDepsBeforeRun: error$/verifyDepsBeforeRun: warn/' pnpm-workspace.yaml
+        run: |
+          sed -i 's/^verifyDepsBeforeRun: error$/verifyDepsBeforeRun: warn/' pnpm-workspace.yaml
 
       # 1. lockfile ベース audit (install 前、即 fail-fast)
       - name: pnpm audit
@@ -64,7 +65,8 @@ jobs:
           cache: pnpm
 
       - name: Tolerate verify-deps drift in CI
-        run: sed -i 's/^verifyDepsBeforeRun: error$/verifyDepsBeforeRun: warn/' pnpm-workspace.yaml
+        run: |
+          sed -i 's/^verifyDepsBeforeRun: error$/verifyDepsBeforeRun: warn/' pnpm-workspace.yaml
 
       # audit ゲートが既に通っているので、ここは pnpm store cache から高速 install
       - name: pnpm install
