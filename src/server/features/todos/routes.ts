@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import type { Db } from "~/server/db";
 import type { SessionUser } from "../auth/auth";
 import { createTodo, findTodo, setTodoDone, deleteTodo } from "./queries";
-import { createTodoInput } from "./validators";
+import { createTodoInput, todoIdParam } from "./validators";
 
 const app = new Hono<{ Bindings: Env; Variables: { db: Db; user: SessionUser | null } }>()
   .use("*", async (c, next) => {
@@ -15,16 +15,17 @@ const app = new Hono<{ Bindings: Env; Variables: { db: Db; user: SessionUser | n
     await createTodo(c.var.db, c.var.user!.id, title);
     return c.redirect("/todos", 303);
   })
-  .post("/:id/toggle", async (c) => {
+  .post("/:id/toggle", zValidator("param", todoIdParam), async (c) => {
     const user = c.var.user!;
-    const id = c.req.param("id");
+    const { id } = c.req.valid("param");
     const row = await findTodo(c.var.db, user.id, id);
-    if (!row) return c.redirect("/todos", 303);
+    if (!row) return c.notFound();
     await setTodoDone(c.var.db, user.id, id, !row.done);
     return c.redirect("/todos", 303);
   })
-  .post("/:id/delete", async (c) => {
-    await deleteTodo(c.var.db, c.var.user!.id, c.req.param("id"));
+  .post("/:id/delete", zValidator("param", todoIdParam), async (c) => {
+    const { id } = c.req.valid("param");
+    await deleteTodo(c.var.db, c.var.user!.id, id);
     return c.redirect("/todos", 303);
   });
 
