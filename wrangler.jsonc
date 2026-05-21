@@ -26,10 +26,11 @@
       "bucket_name": "todo-app-files",
     },
   ],
-  // 平文の環境変数
-  "vars": {
-    "APP_URL": "http://localhost:5173",
-  },
+  // APP_URL は環境ごとに値が違うため `wrangler.jsonc` の `vars` には置かない:
+  //   - local / CI: `.dev.vars` (1Password から pull) で `env.APP_URL` を bind
+  //   - prod: Cloudflare dashboard で Worker Secret として登録 (deploy 越しに保持)
+  // `wrangler types` は `.dev.vars` も読んで `Env` interface に型を生やすので、
+  // TypeScript からは `env.APP_URL: string` として参照できる。
   "observability": {
     "enabled": true,
   },

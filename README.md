@@ -36,7 +36,8 @@ lifecycle hook を仕掛けてあります。普段は気にせず `pnpm install
 3. vault `template-vp-cf-hono-inertia-react-local` に下記 2 Item を作る (Secure Note 型、
    field 名は env var 名と同一、field type は `password` / concealed 推奨):
    - Item `.env` — `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_DATABASE_ID` / `CLOUDFLARE_D1_TOKEN`
-   - Item `.dev.vars` — `BETTER_AUTH_SECRET` / `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+   - Item `.dev.vars` — `APP_URL` / `BETTER_AUTH_SECRET` / `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+     (local vault では `APP_URL=http://localhost:5173` を入れておく。`APP_URL` は厳密には secret ではないが、他の field と同じ Item に置いて pull の往復を増やさない)
 4. アクセス確認: `op vault get template-vp-cf-hono-inertia-react-local`
 
 ### 日常の操作
@@ -126,6 +127,121 @@ local 開発と CI で同じになるので、テスト用に独立した値を�
 - 1Password Service Account Token (`OP_SERVICE_ACCOUNT_TOKEN` repo secret) は audit
   gate 通過後の `verify` job 内、**`matrix.task == 'e2e'` の inject step 限定**でしか
   env に置かれない。詳細は上記「CI (GitHub Actions) からの pull」節を参照
+
+## Cloudflare Workers への自動 deploy (Workers Builds)
+
+main への push で自動 deploy するために **Cloudflare Workers Builds** (Cloudflare 側の
+GitHub 連携機能) を使う。テスト/品質ゲートは `.github/workflows/ci.yml` に残し、deploy
+実体だけ Cloudflare 側に寄せる併用構成。GitHub Actions に CF API Token を持たせず、
+deploy 用 workflow YAML も増やさずに済む。
+
+CI green を deploy の事前条件にする仕掛けは **branch protection の必須 status check**
+で実現する (Workers Builds 自体は GitHub の status checks を見ない仕様だが、main への
+merge が CI green 前提なら実質的に deploy も CI green 前提になる)。
+
+### 構成概要
+
+| 領域                                                                                                    | 担当                                                          |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| PR / main への push 時の test, lint, type check, e2e, audit, signatures                                 | GitHub Actions (`ci.yml`)                                     |
+| CI green の強制                                                                                         | GitHub branch protection (`main` の必須 status check)         |
+| main push 後の build + D1 migration + deploy                                                            | Cloudflare Workers Builds                                     |
+| Worker runtime secrets (`APP_URL` / `BETTER_AUTH_SECRET` / `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`) | Cloudflare dashboard (一度登録すれば deploy 越しに保持される) |
+| 真正性ソース (人間が値を保管する場所)                                                                   | 1Password prod vault `template-vp-cf-hono-inertia-react-prod` |
+
+build 手順は `package.json` の `cf:build` script に集約してある
+(`sed (verifyDepsBeforeRun 緩和) → pnpm db:migrate:remote → pnpm build`)。
+Cloudflare 側の Build command 欄に `pnpm cf:build` を指定する
+(wrangler.jsonc の `build.command` は `@cloudflare/vite-plugin` 配下では ignore されるため、
+dashboard 側に書いて Workers Builds から直接実行させる)。
+
+### 前提リソース (初回 setup の事前準備)
+
+| 項目                 | 内容                                                                                                                                                                                                |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1Password prod vault | `template-vp-cf-hono-inertia-react-prod` に Item `.dev.vars` を作成し、`APP_URL` (`https://<prod-domain>`) / `BETTER_AUTH_SECRET` / `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` の 4 field を埋める |
+| Cloudflare D1        | `todo-app-db` を本番アカウントに用意 (`wrangler d1 create todo-app-db`)。`wrangler.jsonc` の `database_id` を prod の ID で書き換えるか、env 分離するかを決める                                     |
+| Cloudflare R2        | bucket `todo-app-files` を **事前作成** (`wrangler r2 bucket create todo-app-files`)。存在しないと deploy が fail する                                                                              |
+| Google OAuth         | prod ドメインの `https://<prod-domain>/api/auth/callback/google` を Google Cloud Console の OAuth client の Authorized redirect URIs に追加                                                         |
+
+### Workers Builds の接続手順 (dashboard)
+
+1. Cloudflare dashboard → **Workers & Pages** → 該当 Worker (`todo-app`) → **Settings** → **Builds**
+2. **Connect to Git** → Cloudflare の GitHub App を install (リポジトリスコープを必要分のみに絞る)
+3. **Repository**: `YasunoriMATSUOKA/template-vp-cf-hono-inertia-react`
+4. **Production branch**: `main`
+5. **Install command**: `pnpm install --frozen-lockfile --config.minimum-release-age=0`
+6. **Build command**: `pnpm cf:build`
+7. **Deploy command**: `pnpm exec wrangler deploy` (デフォルト挙動と同等なので空欄でも可)
+8. **Node version**: 24 / **Package manager**: pnpm (`packageManager` field から自動判定されるはずだが念のため明示)
+9. Save → 初回 build が走る (後述の bootstrap 済みなら成功するはず)
+
+### Worker secrets の登録 (one-time)
+
+dashboard → Worker → **Settings** → **Variables and Secrets** → **+ Add** を 4 回。
+それぞれ Type: **Secret** を選び、値は 1Password prod vault から手動コピー:
+
+- `APP_URL` (`https://<prod-domain>` — 厳密には secret ではないが、他の field と同じ仕組みに揃えて Secret で登録)
+- `BETTER_AUTH_SECRET`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+
+一度登録すれば後続 `wrangler deploy` を繰り返しても保持される (`wrangler deploy` は
+Secret namespace に触らない)。rotation は 1Password で値を更新した上で dashboard
+で再登録 (or `wrangler secret put` をローカルから)。
+
+### GitHub branch protection の必須 status check 化
+
+CI green でない PR を main に merge させないことで、Workers Builds が deploy する
+commit を CI green に限定する。
+
+GitHub repo → **Settings** → **Branches** → main の branch protection rule で:
+
+- "Require status checks to pass before merging" を有効
+- 必須 check に `audit & install` および `verify (check)` / `verify (build)` /
+  `verify (test)` / `verify (build-storybook)` / `verify (test-storybook)` /
+  `verify (e2e)` の **7 件** を登録 (= `ci.yml` の全 job)
+
+### 初回 bootstrap deploy (Workers Builds 接続前に推奨)
+
+Workers Builds を接続した時点で Worker (`todo-app`) が dashboard に存在しないと、
+GitHub 連携設定 UI から開けない。最初の 1 回だけローカルから手動で Worker を生成する:
+
+```bash
+pnpm secrets:pull:prod                 # prod vault から .env / .dev.vars を生成
+pnpm build                             # dist/client + Worker bundle
+pnpm exec wrangler deploy              # Worker を新規作成
+pnpm exec wrangler secret bulk .dev.vars  # secrets を登録 (上記 dashboard 登録の代替でも OK)
+rm -f .dev.vars .env                   # ローカル secret を即削除
+pnpm secrets:pull:local                # local 開発用に戻す
+```
+
+この時点で Worker / D1 schema / Worker secrets が揃った状態になるので、後は Workers
+Builds 接続 → 以降は push to main で自動 deploy される。
+
+### Rollback
+
+dashboard → Worker → **Deployments** タブで:
+
+- 過去の version 一覧から目的の version を選んで **Rollback** ボタン
+- もしくはローカルから `pnpm exec wrangler rollback [--version-id <ID>]`
+
+D1 migration は schema を進める方向の操作なので、code rollback だけでは schema は
+戻らない。Schema rollback が必要な場合は手動で revert migration を書く (expand /
+contract 規律を守っていれば、新 schema は旧 code でも互換のはず)。
+
+### Destructive migration の注意
+
+`pnpm cf:build` は内部で `pnpm db:migrate:remote` を auto 実行するため、
+**destructive な migration** (DROP COLUMN / DROP TABLE / 非互換な ALTER) は
+
+1. 先に新カラムを足す additive な migration を deploy (expand)
+2. アプリケーション側を新カラムだけ参照するように更新して deploy
+3. 旧カラムを参照するコードが無くなったことを確認してから DROP migration を deploy (contract)
+
+の **expand / contract 2 段階** で運用する。`pnpm db:generate` 直後の `git diff` で
+予期せぬ DROP / ALTER が混入していないか必ず目視 review すること
+(CLAUDE.md の「Auto-generated artifacts」セクション参照)。
 
 ## Security update をマージした直後のローカル install
 
