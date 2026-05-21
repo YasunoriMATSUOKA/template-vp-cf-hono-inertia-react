@@ -13,7 +13,11 @@ import type { MiddlewareHandler } from "hono";
 export const authRateLimitMiddleware: MiddlewareHandler<{
   Bindings: Env;
 }> = async (c, next) => {
-  const ip = c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown";
+  // X-Forwarded-For は "client, proxy1, proxy2" 形式でカンマ区切り複数 IP が並ぶことが
+  // あるので、先頭 (= origin client) のみを取り出して key の揺れを防ぐ。
+  // Cloudflare 環境では通常 cf-connecting-ip が単一値で先にヒットする。
+  const xff = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = c.req.header("cf-connecting-ip") ?? xff ?? "unknown";
   const key = `${new URL(c.req.url).pathname}:${ip}`;
   const { success } = await c.env.AUTH_RATE_LIMITER.limit({ key });
   if (!success) {

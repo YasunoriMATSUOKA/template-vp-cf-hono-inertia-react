@@ -5,7 +5,8 @@ export const createTodoInput = z.object({
 });
 
 // route param `:id` のフォーマット検証。queries.ts は crypto.randomUUID() で
-// 発行した UUID v4 のみを ID として書き込むため、参照側も UUID 限定で受け取る。
+// 発行した UUID v4 のみを書き込むため、読み取り側も v4 に絞って defense-in-depth
+// する (z.uuid() だと v1-v8 全部許容になり、書き込み側との非対称が広がる)。
 export const todoIdParam = z.object({
-  id: z.string().uuid(),
+  id: z.uuidv4(),
 });

@@ -28,8 +28,16 @@ describe("createTodoInput", () => {
 
 describe("todoIdParam", () => {
   it("UUID v4 を受け入れる", () => {
+    // crypto.randomUUID() が発行する形式 (variant bit "8|9|a|b", version "4")
     expect(todoIdParam.safeParse({ id: "550e8400-e29b-41d4-a716-446655440000" }).success).toBe(
       true,
+    );
+  });
+
+  it("UUID v1 (時刻ベース) を拒否", () => {
+    // version bit "1" の UUID。書き込み側が v4 のみなのに合わせて読み取り側も v4 限定。
+    expect(todoIdParam.safeParse({ id: "c232ab00-9414-11ec-b909-0242ac120002" }).success).toBe(
+      false,
     );
   });
 

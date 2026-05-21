@@ -47,10 +47,20 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>()
     return c.render("Todos/Index", { ...authProp(c), todos });
   })
   .onError((err, c) => {
-    // スタックや DB エラー文言をクライアントに返さない。Cloudflare の `observability.enabled`
-    // で Logpush に送られる console.error 経由でだけ詳細を見る。
+    // スタックや DB エラー文言をクライアントに返さない。詳細は Cloudflare の
+    // `observability.enabled` 経由で Logpush に流れる console.error のみで見る。
+    //
+    // レスポンス形式は content negotiation で切替: ブラウザの初回 HTML リクエストや
+    // Inertia 以外のページ遷移 (Accept: text/html) では raw JSON を画面に出さず短い
+    // text/plain を返し、API / JSON クライアント (Accept: application/json or
+    // `/api/*` 配下) には JSON を返す。
     console.error("Unhandled error:", err);
-    return c.json({ error: "Internal Server Error" }, 500);
+    const accept = c.req.header("accept") ?? "";
+    const wantsJson = c.req.path.startsWith("/api/") || accept.includes("application/json");
+    if (wantsJson) {
+      return c.json({ error: "Internal Server Error" }, 500);
+    }
+    return c.text("Internal Server Error", 500);
   });
 
 export default app;
