@@ -25,3 +25,25 @@ updates:
     commit-message:
       prefix: deps
       prefix-development: deps-dev
+
+  # GitHub Actions (.github/workflows/*.yml の `uses:`) を SHA pin で管理。
+  # pinact で初期 hash-pin 済み。Dependabot は SHA を最新版に bump しつつ
+  # 末尾のバージョンコメント (`# vX.Y.Z`) も更新する。
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 5
+
+    cooldown:
+      default-days: 7
+
+    groups:
+      patch-and-minor:
+        applies-to: version-updates
+        update-types:
+          - patch
+          - minor
+
+    commit-message:
+      prefix: ci
