@@ -90,6 +90,8 @@ jobs:
               ;;
             test-storybook)
               pnpm build-storybook
+              # test-storybook は内部で Playwright (chromium) を使う
+              pnpm exec playwright install --with-deps chromium
               npx --yes http-server storybook-static -p 6006 --silent > /tmp/sb-http.log 2>&1 &
               HTTP_PID=$!
               for i in $(seq 1 90); do
