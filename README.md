@@ -1,5 +1,7 @@
 # template-vp-cf-hono-inertia-react
 
+[![CI](https://github.com/YasunoriMATSUOKA/template-vp-cf-hono-inertia-react/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/YasunoriMATSUOKA/template-vp-cf-hono-inertia-react/actions/workflows/ci.yml?query=branch%3Amain)
+
 Vite + Cloudflare Workers + Hono + Inertia.js + React テンプレート。
 
 ## Generated files & lifecycle hooks
