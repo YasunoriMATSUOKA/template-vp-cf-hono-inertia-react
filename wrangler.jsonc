@@ -26,6 +26,21 @@
       "bucket_name": "todo-app-files",
     },
   ],
+  // Cloudflare Rate Limiting (per-IP, /api/auth/sign-in & /api/auth/sign-up 用)。
+  // Workers Rate Limiting API は dev runtime (miniflare/workerd) では noop に近い fallback
+  // となるため、CI / local では制限は事実上掛からない。本番でのみ実値が効く。
+  // namespace_id は account 内でユニーク (Cloudflare dashboard の生成済 ID と一致させる)。
+  // simple.period は仕様上 10 または 60 のみ許容。
+  "ratelimits": [
+    {
+      "name": "AUTH_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 10,
+        "period": 60,
+      },
+    },
+  ],
   // APP_URL は環境ごとに値が違うため `wrangler.jsonc` の `vars` には置かない:
   //   - local / CI: `.dev.vars` (1Password から pull) で `env.APP_URL` を bind
   //   - prod: Cloudflare dashboard で Worker Secret として登録 (deploy 越しに保持)

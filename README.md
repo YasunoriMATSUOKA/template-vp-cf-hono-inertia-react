@@ -128,6 +128,43 @@ local 開発と CI で同じになるので、テスト用に独立した値を�
   gate 通過後の `verify` job 内、**`matrix.task == 'e2e'` の inject step 限定**でしか
   env に置かれない。詳細は上記「CI (GitHub Actions) からの pull」節を参照
 
+## Runtime hardening (Hono Worker 側の defense in depth)
+
+実装済 (`src/server/`):
+
+- **Security response headers** — `middleware/security-headers.ts` で `hono/secure-headers` を
+  全レスポンスに適用。CSP は prod で `script-src 'self'`、dev は Vite HMR / React Refresh
+  preamble のため `'unsafe-inline' 'unsafe-eval'` を許容する分岐 (`import.meta.env.DEV` で切替)。
+  HSTS は prod のみ `max-age=31536000; includeSubDomains`。
+- **CSRF protection** — `hono/csrf` を `/api/auth/*` を除く全 path に適用。`/api/auth/*` は
+  Better Auth の origin-check middleware が独自検証する。Inertia は `application/json` で
+  POST するため hono/csrf の content-type ガード対象外で素通りし、cross-origin の form POST
+  (`x-www-form-urlencoded` / `multipart/form-data` / `text/plain`) のみが 403 になる。
+- **Better Auth 設定の厳格化** — `features/auth/auth.ts` で `trustedOrigins` / cookie の
+  `Secure`/`HttpOnly`/`SameSite=Lax` / session の `expiresIn`/`updateAge` を明示。
+- **Auth エンドポイントの rate limiting** — `middleware/rate-limit.ts` + `wrangler.jsonc` の
+  `ratelimits` binding (`AUTH_RATE_LIMITER`, 10 req / 60s / IP) を `/api/auth/sign-in/*` と
+  `/api/auth/sign-up/*` に適用。dev/CI では Workers Rate Limiting は noop fallback。
+- **Route param 検証** — `features/todos/validators.ts` の `todoIdParam` で UUID 形式を
+  強制し、`zValidator("param", ...)` で 400 を返す。
+- **Global error handler** — `index.ts` の `.onError` でスタック / DB エラー文言を握り
+  潰し `{"error":"Internal Server Error"}` (500) を返す。詳細は console.error 経由で
+  Cloudflare Logpush に流す。
+
+### 本番化前 TODO (まだ未実装)
+
+- **OAuth token の at-rest 暗号化** — `src/server/db/schema.ts` の `account` テーブルでは
+  `accessToken` / `refreshToken` / `idToken` が平文で保存される (Better Auth 標準動作)。
+  本番で Google API を実コールする機能 (Calendar / Drive 等) を追加する場合は、Better Auth の
+  `databaseHooks.account.create.before` / `update.before` / `read.after` で `crypto.subtle`
+  (AES-GCM) 暗号化を実装し、`TOKEN_ENCRYPTION_KEY` を Worker Secret として追加する。
+- **`redirectTo` / `callbackURL` の allowlist 化** — 現状 `SignInButton` / `SignOutButton` の
+  prop は内部 hardcode のみで実害なし。URL クエリから渡す改修が入る段階で内部 path 限定の
+  helper (`safe-redirect.ts`) を導入する。
+- **`import.meta.env.DEV` const-fold の build-time assertion** — `@cloudflare/vite-plugin` の
+  定数置換が壊れた場合に email/password 認証が本番で有効化されないよう、`pnpm build` 後に
+  `dist/worker/*.js` を grep する post-step を入れる選択肢がある。現状は plugin を信頼。
+
 ## Cloudflare Workers への自動 deploy (Workers Builds)
 
 main への push で自動 deploy するために **Cloudflare Workers Builds** (Cloudflare 側の
