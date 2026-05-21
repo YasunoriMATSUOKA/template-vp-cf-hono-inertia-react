@@ -34,22 +34,14 @@ jobs:
           node-version: "24"
           cache: pnpm
 
-      # `pnpm install --config.minimum-release-age=0` で install すると state file が
-      # minimumReleaseAge="0" を記録し、workspace.yaml の 10080 と drift する。
-      # この drift を後続 `pnpm <cmd>` が ERR_PNPM_VERIFY_DEPS_BEFORE_RUN で拒むため、
-      # CI 内だけ severity を error → warn に下げる。CLI flag や env では伝播しないので
-      # workspace.yaml を直接書き換える (CI VM 内で完結、commit しない)。
-      - name: Tolerate verify-deps drift in CI
-        run: |
-          sed -i 's/^verifyDepsBeforeRun: error$/verifyDepsBeforeRun: warn/' pnpm-workspace.yaml
-
       # 1. lockfile ベース audit (install 前、即 fail-fast)
       - name: pnpm audit
         run: pnpm audit
 
-      # 2. install (CI 上だけ minimumReleaseAge を一時無視)
+      # 2. install (young version は pnpm-workspace.yaml の
+      #    minimumReleaseAgeExclude で grandfather 済みなので flag 不要)
       - name: pnpm install
-        run: pnpm install --frozen-lockfile --config.minimum-release-age=0
+        run: pnpm install --frozen-lockfile
 
       # 3. 公式 npm 署名検証
       - name: pnpm audit:signatures
@@ -76,13 +68,9 @@ jobs:
           node-version: "24"
           cache: pnpm
 
-      - name: Tolerate verify-deps drift in CI
-        run: |
-          sed -i 's/^verifyDepsBeforeRun: error$/verifyDepsBeforeRun: warn/' pnpm-workspace.yaml
-
       # audit ゲートが既に通っているので、ここは pnpm store cache から高速 install
       - name: pnpm install
-        run: pnpm install --frozen-lockfile --config.minimum-release-age=0
+        run: pnpm install --frozen-lockfile
 
       # e2e のみ Playwright が `pnpm dev` を起動し Wrangler runtime が `.dev.vars` を読むので、
       # 1Password の `template-vp-cf-hono-inertia-react-local` vault (local 開発と共用) から

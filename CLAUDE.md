@@ -90,13 +90,15 @@ TypeScript 6 系。テストは Vitest (unit) / Playwright (E2E) / Storybook + t
 
 - **`saveExact: true`** — 新規 `pnpm add` は exact 版で書く。`^` / `~` を勝手に付けない
 - **`minimumReleaseAge: 10080`** (分 = 7 日) — publish から 7 日未満の version は install 不可。
-  例外は `minimumReleaseAgeExclude` (grandfather list) に列挙
+  例外は `minimumReleaseAgeExclude` (grandfather list) に明示列挙する。Cloudflare Workers
+  Builds は dashboard に install command 指定欄が無く、`--config.minimum-release-age=0` を
+  渡せない一方、env var (`npm_config_minimum_release_age=0`) でも policy override が効かない
+  ため、exclude list の保守が deploy 通過の唯一の経路
 - **`engineStrict: true`** — `engines.node` / `engines.pnpm` 範囲外で install/run fail
-- **`verifyDepsBeforeRun: warn`** — node_modules と lockfile が drift していたら起動時に警告
-  (元は `error` だが、`pnpm install --config.minimum-release-age=0` で install した state と
-  workspace 設定の drift が原因で `pnpm <cmd>` が全部 fail する UX を避けるため `warn` に
-  ダウングレード済み。CI 側は `sed` で念のため `warn` に揃える step を残しているが、
-  workspace.yaml が既に `warn` なので no-op として動作する)
+- **`verifyDepsBeforeRun: error`** — node_modules と lockfile が drift していたら即 fail。
+  以前は `--config.minimum-release-age=0` で生まれる state file の drift を許容するため
+  `warn` に下げていたが、minimumReleaseAgeExclude で young version を policy 例外にする
+  方式に切り替えたため override 不要となり error に復帰
 - **`overrides`**:
   - `esbuild: '>=0.24.3'` — GHSA-67mh-4wv8-2f99 (dev server リクエスト偽装) patch
   - `ws: '>=8.20.1'` — GHSA-58qx-3vcg-4xpx (uninitialized memory disclosure) patch
@@ -111,9 +113,10 @@ SHA と comment を一緒に更新する。
 新規パッケージ追加時に `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` を見たら:
 
 1. その version がまだ 7 日経っていない → 待つ (最も安全)
-2. 急ぎ必要 → ユーザーに相談の上 `minimumReleaseAgeExclude` に追記
-3. CI と同じく一時 override → `pnpm install --config.minimum-release-age=0`
-   (Dependabot security PR マージ直後のローカル install 等、CI 側で audit ゲートを通っている場合のみ)
+2. 急ぎ必要 → `node scripts/find-young-deps.mjs` の出力を `minimumReleaseAgeExclude`
+   に追記して同 PR に含める。`pnpm install --frozen-lockfile` が override 無しで通れば OK
+3. ローカル限定の一時 override → `pnpm install --frozen-lockfile --config.minimum-release-age=0`
+   (CI / Cloudflare には override 経路が無いので、PR を投げる前に必ず 2 で exclude を更新する)
 
 ## CI gate (`.github/workflows/ci.yml`)
 
@@ -127,7 +130,8 @@ PR と main push で 2 job 構成。workflow top-level に `permissions: content
    `uses:` が full SHA + `# vX.Y.Z` comment 形式に pin されているか検証。unpinned/mutable ref に
    regression したら ここで fail
 3. `pnpm audit` — lockfile ベース、install 前に既知脆弱性ゼロを確認
-4. `pnpm install --frozen-lockfile --config.minimum-release-age=0` — CI 上のみ cooldown 無視
+4. `pnpm install --frozen-lockfile` — young version は workspace の `minimumReleaseAgeExclude`
+   で grandfather 済み (override flag は不要)
 5. `pnpm audit:signatures` — 公式 npm 署名検証 (install 後の node_modules ツリーが必要)
 
 ### `verify` job (audit に依存、matrix で並列)

@@ -24,10 +24,56 @@ overrides:
 # minimumReleaseAgeExclude に列挙する。
 minimumReleaseAge: 10080
 
-# 導入時グランドファザリング (2026-05-21 時点で lockfile 内の若い version 48 件)
-# 既に install 済みで動作確認した package を policy 例外として明示的に許可する。
-# 半年に 1 度くらい scripts/find-young-deps.mjs で再生成し、age を超えたものを削る運用。
-minimumReleaseAgeExclude: []
+# 公開 7 日未満で lockfile に固定された package の grandfather list。
+# Cloudflare Workers Builds の dashboard には install command 指定欄が無く、
+# `--config.minimum-release-age=0` を install に渡す経路が無いので、policy
+# 例外を明示的に列挙する以外に deploy 通す方法が無い。
+# 生成: `node scripts/find-young-deps.mjs` の出力を貼る。
+# 運用: lockfile 更新 (Dependabot security PR 等) で新規 young version が
+# 入るたび、同 PR でこのリストも更新する。age を過ぎたものは半年に 1 度
+# くらいで整理 (再 `find-young-deps.mjs` で diff を取る)。
+minimumReleaseAgeExclude:
+  - "@cloudflare/vite-plugin"
+  - "@cloudflare/workerd-darwin-64"
+  - "@cloudflare/workerd-darwin-arm64"
+  - "@cloudflare/workerd-linux-64"
+  - "@cloudflare/workerd-linux-arm64"
+  - "@cloudflare/workerd-windows-64"
+  - "@types/node"
+  - "@unrs/resolver-binding-android-arm-eabi"
+  - "@unrs/resolver-binding-android-arm64"
+  - "@unrs/resolver-binding-darwin-arm64"
+  - "@unrs/resolver-binding-darwin-x64"
+  - "@unrs/resolver-binding-freebsd-x64"
+  - "@unrs/resolver-binding-linux-arm-gnueabihf"
+  - "@unrs/resolver-binding-linux-arm-musleabihf"
+  - "@unrs/resolver-binding-linux-arm64-gnu"
+  - "@unrs/resolver-binding-linux-arm64-musl"
+  - "@unrs/resolver-binding-linux-ppc64-gnu"
+  - "@unrs/resolver-binding-linux-riscv64-gnu"
+  - "@unrs/resolver-binding-linux-riscv64-musl"
+  - "@unrs/resolver-binding-linux-s390x-gnu"
+  - "@unrs/resolver-binding-linux-x64-gnu"
+  - "@unrs/resolver-binding-linux-x64-musl"
+  - "@unrs/resolver-binding-openharmony-arm64"
+  - "@unrs/resolver-binding-wasm32-wasi"
+  - "@unrs/resolver-binding-win32-arm64-msvc"
+  - "@unrs/resolver-binding-win32-ia32-msvc"
+  - "@unrs/resolver-binding-win32-x64-msvc"
+  - "@vitejs/plugin-react"
+  - baseline-browser-mapping
+  - caniuse-lite
+  - daisyui
+  - electron-to-chromium
+  - enhanced-resolve
+  - hono
+  - lru-cache
+  - miniflare
+  - tsx
+  - unrs-resolver
+  - vite
+  - workerd
+  - wrangler
 
 # 新規 install/add で ^/~ を付けず exact 版で書く。
 # 既存の ^ は scripts/pin-deps.mjs で別途剥がす。
@@ -38,7 +84,11 @@ engineStrict: true
 
 # pnpm dev / pnpm test 等の起動前に node_modules と lockfile の同期を強制検証。
 # 'error' で drift 即 fail。'warn' に下げると警告のみ。
-verifyDepsBeforeRun: warn
+# 旧来は `pnpm install --config.minimum-release-age=0` で生じる state file の
+# drift を許容するために warn に下げていたが、minimumReleaseAgeExclude で
+# young version を policy 例外にする方式に切り替えたため、override 不要で
+# drift も起きなくなり error に復帰可能。
+verifyDepsBeforeRun: error
 
 # install 末尾の "X packages are looking for funding" を非表示。
 fund: false
