@@ -35,24 +35,28 @@ TypeScript 6 系。テストは Vitest (unit) / Playwright (E2E) / Storybook + t
 
 ## Common commands
 
-| 目的                    | コマンド                 |
-| ----------------------- | ------------------------ |
-| 開発サーバ              | `pnpm dev`               |
-| 本番ビルド              | `pnpm build`             |
-| 型 + lint まとめ        | `pnpm check`             |
-| Vitest watch            | `pnpm test`              |
-| Vitest 単発             | `pnpm test:run`          |
-| Playwright E2E          | `pnpm e2e`               |
-| Playwright UI モード    | `pnpm e2e:ui`            |
-| Storybook 起動          | `pnpm storybook`         |
-| Storybook ビルド        | `pnpm build-storybook`   |
-| Storybook test          | `pnpm test-storybook`    |
-| D1 スキーマ → migration | `pnpm db:generate`       |
-| ローカル D1 適用        | `pnpm db:migrate:local`  |
-| 本番 D1 適用            | `pnpm db:migrate:remote` |
-| Cloudflare デプロイ     | `pnpm deploy`            |
-| Worker 型生成           | `pnpm cf-typegen`        |
-| npm 公式署名検証        | `pnpm audit:signatures`  |
+| 目的                                                                     | コマンド                                                                               |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| 開発サーバ                                                               | `pnpm dev`                                                                             |
+| 本番ビルド                                                               | `pnpm build`                                                                           |
+| 型 + lint まとめ                                                         | `pnpm check`                                                                           |
+| Vitest watch                                                             | `pnpm test`                                                                            |
+| Vitest 単発                                                              | `pnpm test:run`                                                                        |
+| Playwright E2E                                                           | `pnpm e2e`                                                                             |
+| Playwright UI モード                                                     | `pnpm e2e:ui`                                                                          |
+| Storybook 起動                                                           | `pnpm storybook`                                                                       |
+| Storybook ビルド                                                         | `pnpm build-storybook`                                                                 |
+| Storybook test                                                           | `pnpm test-storybook`                                                                  |
+| D1 スキーマ → migration                                                  | `pnpm db:generate`                                                                     |
+| ローカル D1 適用                                                         | `pnpm db:migrate:local`                                                                |
+| 本番 D1 適用                                                             | `pnpm db:migrate:remote`                                                               |
+| Cloudflare デプロイ                                                      | `pnpm deploy`                                                                          |
+| Worker 型生成                                                            | `pnpm cf-typegen`                                                                      |
+| npm 公式署名検証                                                         | `pnpm audit:signatures`                                                                |
+| 1Password から secrets 同期 (`.env` / `.dev.vars` 生成、local vault)     | `pnpm secrets:pull:local` (引数省略時の `pnpm secrets:pull` も local にフォールバック) |
+| 1Password から secrets 同期 (prod vault で同ファイルを上書き)            | `pnpm secrets:pull:prod` (prod 操作後は local に戻すこと)                              |
+| 1Password から secrets 同期 (CI 内専用、local vault の `.dev.vars` のみ) | `pnpm secrets:pull:ci` (要 `OP_SERVICE_ACCOUNT_TOKEN`、local vault を流用)             |
+| GitHub Actions の SHA pin を local 更新                                  | `pinact run` (新規 action を足した時に `@vN` → full SHA に変換)                        |
 
 ## Auto-generated artifacts
 
@@ -88,12 +92,21 @@ TypeScript 6 系。テストは Vitest (unit) / Playwright (E2E) / Storybook + t
 - **`minimumReleaseAge: 10080`** (分 = 7 日) — publish から 7 日未満の version は install 不可。
   例外は `minimumReleaseAgeExclude` (grandfather list) に列挙
 - **`engineStrict: true`** — `engines.node` / `engines.pnpm` 範囲外で install/run fail
-- **`verifyDepsBeforeRun: error`** — node_modules と lockfile が drift していたら起動 fail
+- **`verifyDepsBeforeRun: warn`** — node_modules と lockfile が drift していたら起動時に警告
+  (元は `error` だが、`pnpm install --config.minimum-release-age=0` で install した state と
+  workspace 設定の drift が原因で `pnpm <cmd>` が全部 fail する UX を避けるため `warn` に
+  ダウングレード済み。CI 側は `sed` で念のため `warn` に揃える step を残しているが、
+  workspace.yaml が既に `warn` なので no-op として動作する)
 - **`overrides`**:
   - `esbuild: '>=0.24.3'` — GHSA-67mh-4wv8-2f99 (dev server リクエスト偽装) patch
   - `ws: '>=8.20.1'` — GHSA-58qx-3vcg-4xpx (uninitialized memory disclosure) patch
 
   → transitive 経路の脆弱性 patch を保つため、勝手に外さない。
+
+GitHub Actions 側も同じ思想で、`.github/workflows/*.yml` の `uses:` は **full SHA + `# vX.Y.Z` comment** で pin する。
+新規 action を足した時は `pinact run` でローカル変換、CI の audit job で `pinact --check` 相当の verify が走り、
+mutable ref への regression は merge gate で fail する。SHA bump は Dependabot (`github-actions` ecosystem) が
+SHA と comment を一緒に更新する。
 
 新規パッケージ追加時に `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` を見たら:
 
@@ -104,25 +117,59 @@ TypeScript 6 系。テストは Vitest (unit) / Playwright (E2E) / Storybook + t
 
 ## CI gate (`.github/workflows/ci.yml`)
 
-PR と main push で以下の順序で fail-fast:
+PR と main push で 2 job 構成。workflow top-level に `permissions: contents: read` を置き、
+`GITHUB_TOKEN` を default で read-only に絞っている (defense in depth)。
 
-1. `pnpm audit` — lockfile ベース、install 前に既知脆弱性ゼロを確認
-2. `pnpm install --frozen-lockfile --config.minimum-release-age=0` — CI 上のみ cooldown 無視
-3. `pnpm audit:signatures` — 公式 npm 署名検証 (install 後の node_modules ツリーが必要)
-4. `pnpm exec tsc --noEmit --ignoreDeprecations 6.0` — 型チェック
-5. `pnpm test:run` — Vitest
-6. `pnpm exec playwright install --with-deps chromium`
-7. `pnpm e2e` — Playwright
-8. `pnpm build` — 本番ビルド成立確認 (deploy はしない)
+### `audit` job (fail-fast の門)
+
+1. checkout
+2. **pinact verify** (`suzuki-shunsuke/pinact-action`, `skip_push: true`) — `.github/workflows/**` の
+   `uses:` が full SHA + `# vX.Y.Z` comment 形式に pin されているか検証。unpinned/mutable ref に
+   regression したら ここで fail
+3. `pnpm audit` — lockfile ベース、install 前に既知脆弱性ゼロを確認
+4. `pnpm install --frozen-lockfile --config.minimum-release-age=0` — CI 上のみ cooldown 無視
+5. `pnpm audit:signatures` — 公式 npm 署名検証 (install 後の node_modules ツリーが必要)
+
+### `verify` job (audit に依存、matrix で並列)
+
+matrix: `[check, build, test, build-storybook, test-storybook, e2e]`。各 task は
+独立 runner で並列実行され、checkout → pnpm/Node setup → install → 該当 task の順。
+Playwright を要する `e2e` / `test-storybook` 内で `playwright install --with-deps chromium`。
+
+`e2e` task のみ `.dev.vars` (Better Auth / Google OAuth credentials) が必要なので、
+**`matrix.task == 'e2e'` 限定**で 2 step が走る (install 後・task switch 前):
+
+1. `Install 1Password CLI` (`1password/install-cli-action`)
+2. `Inject .dev.vars from 1Password` — この step だけが env に
+   `OP_SERVICE_ACCOUNT_TOKEN` (GitHub repo secret) を持ち、`pnpm secrets:pull:ci` で
+   `template-vp-cf-hono-inertia-react-local` vault (local 開発と共用) の `.dev.vars`
+   Item を `.dev.vars` ファイルに展開する。Service Account はこの vault に read-only
+   でスコープする
+
+token は inject step のみで env 化し、後続の e2e 実行 step には伝播しない。他の matrix
+task (`check`/`build`/`test`/`build-storybook`/`test-storybook`) には token も
+`.dev.vars` も渡らない。
+
+e2e 実行直後 (`if: always()` で失敗時も走る) に `.dev.vars` / `.env` を `rm -f` で削除し、
+artifact upload 等で secret がリークしないようにする。GitHub-hosted runner は ephemeral
+だが、露出窓を最小化する defense in depth。
 
 設計の中核: **CI が緑 = audit が通っている = age 制約を一時 skip しても安全**。
+さらに **secret は audit gate 通過後の最小限の 1 step でしか露出しない**。
+
+`.pinact.yaml` は `pinact init` の default 設定のまま。新規 action を追加した時はローカルで
+`pinact run` を叩けば SHA pin に変換される。
 
 ## Dependabot policy (`.github/dependabot.yml`)
 
-- npm エコシステム / daily / 最大 5 PR
-- routine update: 7 日 cooldown 後に PR、patch + minor は 1 PR に group 化、major は個別
-- security update: cooldown 無視で即 PR (Dependabot 標準動作、追加 config 不要)
+2 ecosystem を並走させる。両方とも daily / 最大 5 PR / 7 日 cooldown / patch+minor を 1 PR に group:
 
+- **npm** — `package.json` / `pnpm-lock.yaml`。commit prefix は `deps` / `deps-dev` (dev dep)
+- **github-actions** — `.github/workflows/**`。commit prefix は `ci`。`uses:` が
+  `<full-sha> # vX.Y.Z` 形式で pin されているため、Dependabot は SHA と version comment を
+  同時に更新する
+
+security update は cooldown 無視で即 PR (Dependabot 標準動作、追加 config 不要)。
 security PR マージ直後にローカルで install が fail する場合の workaround は `README.md` の同名節を参照。
 
 ## Testing layers
@@ -148,7 +195,9 @@ pnpm exec tsc --noEmit --ignoreDeprecations 6.0
 - `.github/workflows/ci.yml` / `.github/dependabot.yml` (合意済みの構成)
 - `migrations/` の既存ファイル (新規追加は `pnpm db:generate` 経由のみ)
 - `worker-configuration.d.ts` (自動生成、`pnpm cf-typegen` で更新)
-- `.dev.vars` / `.env` (シークレット、`.dev.vars.example` / `.env.example` を真正性の基準にする)
+- `.dev.vars` / `.env` (シークレット、`.dev.vars.example` / `.env.example` を「どの変数が必要か」の
+  source of truth として残す。値の同期は `.dev.vars.1password.tpl` / `.env.1password.tpl` +
+  `pnpm secrets:pull` で行う — 詳細は `README.md` の "ローカル開発 setup" 節)
 
 ## AI は実行しないコマンド
 

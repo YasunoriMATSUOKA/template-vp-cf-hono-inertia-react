@@ -21,7 +21,11 @@
     "test-storybook": "test-storybook",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
-    "audit:signatures": "npx --yes npm@latest audit signatures"
+    "audit:signatures": "npx --yes npm@latest audit signatures",
+    "secrets:pull": "node scripts/secrets-pull.mjs",
+    "secrets:pull:local": "node scripts/secrets-pull.mjs local",
+    "secrets:pull:prod": "node scripts/secrets-pull.mjs prod",
+    "secrets:pull:ci": "node scripts/secrets-pull.mjs local .dev.vars"
   },
   "dependencies": {
     "@hono/inertia": "0.2.0",

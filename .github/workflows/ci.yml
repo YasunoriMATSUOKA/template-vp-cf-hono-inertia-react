@@ -84,6 +84,22 @@ jobs:
       - name: pnpm install
         run: pnpm install --frozen-lockfile --config.minimum-release-age=0
 
+      # e2e のみ Playwright が `pnpm dev` を起動し Wrangler runtime が `.dev.vars` を読むので、
+      # 1Password の `template-vp-cf-hono-inertia-react-local` vault (local 開発と共用) から
+      # `.dev.vars` Item を inject する。Service Account はこの vault に read-only でスコープ。
+      # OP_SERVICE_ACCOUNT_TOKEN は inject step 限定の env で参照し、後続の e2e 実行 step では
+      # 露出させない (生成された `.dev.vars` のみが残る)。他の matrix task (check/build/test/
+      # storybook) には secret が一切渡らない。
+      - name: Install 1Password CLI (e2e only)
+        if: matrix.task == 'e2e'
+        uses: 1password/install-cli-action@8d006a0d0a4fd505af7f7ce589e7f768385ff5e4 # v3.0.0
+
+      - name: Inject .dev.vars from 1Password (e2e only)
+        if: matrix.task == 'e2e'
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+        run: pnpm secrets:pull:ci
+
       - name: Run ${{ matrix.task }}
         run: |
           set -euo pipefail
@@ -125,3 +141,12 @@ jobs:
               pnpm e2e
               ;;
           esac
+
+      # 1Password から inject した secrets ファイルを task 完了直後に削除する。
+      # `if: always()` で task が失敗しても必ず走らせる。GitHub-hosted runner は job 終了で
+      # 破棄されるが、後続 step が artifact upload を始める前にディスクから消すことで
+      # 露出窓を最小化する (defense in depth)。`.env` は `secrets:pull:ci` では書かない
+      # 想定だが、`rm -f` は idempotent なので念のため両方を消す。
+      - name: Remove injected secrets files
+        if: always() && matrix.task == 'e2e'
+        run: rm -f .dev.vars .env

@@ -38,7 +38,7 @@ engineStrict: true
 
 # pnpm dev / pnpm test 等の起動前に node_modules と lockfile の同期を強制検証。
 # 'error' で drift 即 fail。'warn' に下げると警告のみ。
-verifyDepsBeforeRun: error
+verifyDepsBeforeRun: warn
 
 # install 末尾の "X packages are looking for funding" を非表示。
 fund: false
