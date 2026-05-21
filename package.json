@@ -8,7 +8,7 @@
     "dev": "vp dev",
     "prebuild": "pnpm cf-typegen",
     "build": "vp build",
-    "cf:build": "sed -i 's/^verifyDepsBeforeRun: error$/verifyDepsBeforeRun: warn/' pnpm-workspace.yaml && pnpm db:migrate:remote && pnpm build",
+    "cf:build": "pnpm db:migrate:remote && pnpm build",
     "check": "vp check",
     "test": "vitest",
     "test:run": "vitest run",

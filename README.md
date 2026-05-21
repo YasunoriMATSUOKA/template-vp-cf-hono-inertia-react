@@ -170,11 +170,13 @@ dashboard 側に書いて Workers Builds から直接実行させる)。
 2. **Connect to Git** → Cloudflare の GitHub App を install (リポジトリスコープを必要分のみに絞る)
 3. **Repository**: `YasunoriMATSUOKA/template-vp-cf-hono-inertia-react`
 4. **Production branch**: `main`
-5. **Install command**: `pnpm install --frozen-lockfile --config.minimum-release-age=0`
-6. **Build command**: `pnpm cf:build`
-7. **Deploy command**: `pnpm deploy` (= `wrangler deploy --config dist/client/todo_app/wrangler.json`、空欄不可。`@cloudflare/vite-plugin` が build 時に生成する `dist/client/todo_app/wrangler.json` を使わないと wrangler が `src/server/index.ts` を再 bundle してしまい、vite が emit した hashed assets と整合が取れない)
-8. **Node version**: 24 / **Package manager**: pnpm (`packageManager` field から自動判定されるはずだが念のため明示)
-9. Save → 初回 build が走る (後述の bootstrap 済みなら成功するはず)
+5. **Build command**: `pnpm cf:build`
+6. **Deploy command**: `pnpm deploy` (= `wrangler deploy --config dist/client/todo_app/wrangler.json`、空欄不可。`@cloudflare/vite-plugin` が build 時に生成する `dist/client/todo_app/wrangler.json` を使わないと wrangler が `src/server/index.ts` を再 bundle してしまい、vite が emit した hashed assets と整合が取れない)
+7. **Node version**: 24 / **Package manager**: pnpm (`packageManager` field から自動判定されるはずだが念のため明示)
+8. Save → 初回 build が走る (後述の bootstrap 済みなら成功するはず)
+
+> [!NOTE]
+> Workers Builds の dashboard には Pages にあった独立した **Install command** 欄が無く、install は lockfile から package manager を auto-detect して固定コマンドで実行される (= `pnpm install` を flag 無しで叩く)。env var (`npm_config_minimum_release_age=0` 等) も pnpm の policy override では効かないため、`pnpm-workspace.yaml` の **`minimumReleaseAgeExclude`** に young version を明示列挙する方式で deploy 通している (lockfile を更新するたび同 PR でこのリストも更新する運用)。詳細は `CLAUDE.md` の Supply chain policy 節を参照。
 
 ### Worker secrets の登録 (one-time)
 
@@ -248,22 +250,35 @@ contract 規律を守っていれば、新 schema は旧 code でも互換のは
 予期せぬ DROP / ALTER が混入していないか必ず目視 review すること
 (CLAUDE.md の「Auto-generated artifacts」セクション参照)。
 
-## Security update をマージした直後のローカル install
+## young version をマージする時の運用
 
-Dependabot の security PR がマージされた直後、その更新が publish から
-7 日以内 (= `minimumReleaseAge` cutoff 内) だと、ローカルで
-`pnpm install` が以下のエラーで fail することがあります:
+Dependabot security PR や `pnpm up` で publish から 7 日未満の version が
+lockfile に入ると、CI / Cloudflare Workers Builds の install で:
 
 ```
 ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION
 ```
 
-CI と同じく cooldown を一時的に無視して install:
+が出ます (CI 側で `--config.minimum-release-age=0` は **使わない**運用に
+切り替えています — Cloudflare 側で同等の override 経路が無いため、
+allowlist を canonical source of truth にする方針)。
+
+対応は PR の中で:
+
+```bash
+node scripts/find-young-deps.mjs > /tmp/young.txt   # 現 lockfile の若い version を列挙
+# /tmp/young.txt の出力を pnpm-workspace.yaml の minimumReleaseAgeExclude に追記
+pnpm install --frozen-lockfile                       # override 無しで install が通れば OK
+git add pnpm-workspace.yaml
+```
+
+ローカルで急ぎ install を通したいときの一時 escape hatch:
 
 ```bash
 pnpm install --frozen-lockfile --config.minimum-release-age=0
 ```
 
-CI 側で merge 前に `pnpm audit` + `pnpm audit:signatures` を通過済みなので、
-このタイミングで age 制約を skip しても安全という設計です。次回以降の
-通常 install (= age 経過後) は引き続き `pnpm install` だけで OK。
+ただし `verifyDepsBeforeRun: error` の下では state file が drift して
+後続 `pnpm <cmd>` が fail するので、本筋は **PR で `minimumReleaseAgeExclude`
+を更新する**こと。age を過ぎたパッケージは半年に 1 度くらい
+`find-young-deps.mjs` の diff を取って整理する。
