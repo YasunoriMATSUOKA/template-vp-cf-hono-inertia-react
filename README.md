@@ -170,11 +170,23 @@ dashboard 側に書いて Workers Builds から直接実行させる)。
 2. **Connect to Git** → Cloudflare の GitHub App を install (リポジトリスコープを必要分のみに絞る)
 3. **Repository**: `YasunoriMATSUOKA/template-vp-cf-hono-inertia-react`
 4. **Production branch**: `main`
-5. **Install command**: `pnpm install --frozen-lockfile --config.minimum-release-age=0`
-6. **Build command**: `pnpm cf:build`
-7. **Deploy command**: `pnpm deploy` (= `wrangler deploy --config dist/client/todo_app/wrangler.json`、空欄不可。`@cloudflare/vite-plugin` が build 時に生成する `dist/client/todo_app/wrangler.json` を使わないと wrangler が `src/server/index.ts` を再 bundle してしまい、vite が emit した hashed assets と整合が取れない)
-8. **Node version**: 24 / **Package manager**: pnpm (`packageManager` field から自動判定されるはずだが念のため明示)
-9. Save → 初回 build が走る (後述の bootstrap 済みなら成功するはず)
+5. **Build command**: `pnpm cf:build`
+6. **Deploy command**: `pnpm deploy` (= `wrangler deploy --config dist/client/todo_app/wrangler.json`、空欄不可。`@cloudflare/vite-plugin` が build 時に生成する `dist/client/todo_app/wrangler.json` を使わないと wrangler が `src/server/index.ts` を再 bundle してしまい、vite が emit した hashed assets と整合が取れない)
+7. **Node version**: 24 / **Package manager**: pnpm (`packageManager` field から自動判定されるはずだが念のため明示)
+8. Save → 初回 build が走る (後述の bootstrap 済みなら成功するはず)
+
+> [!IMPORTANT]
+> Workers Builds の dashboard には Pages にあった独立した **Install command** 欄が無く、install は lockfile から package manager を auto-detect して固定コマンドで実行される (= `pnpm install` を flag 無しで叩く)。このため `pnpm-workspace.yaml` の `minimumReleaseAge: 10080` が CI 上で効いてしまい、publish 7 日未満のパッケージが含まれる lockfile で install が `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` で失敗する (security update 直後など)。
+>
+> 解決策: **Build variables and secrets** (上記 Builds 設定の下にあるセクション、Worker runtime の Variables and Secrets とは別物) に以下を 1 件追加する:
+>
+> | Variable name                    | Value | Type      |
+> | -------------------------------- | ----- | --------- |
+> | `npm_config_minimum_release_age` | `0`   | Plaintext |
+>
+> pnpm は `npm_config_<kebab-key>` 形式の env var を CLI flag と等価に解釈する (npm 互換挙動) ため、auto-install が `--config.minimum-release-age=0` 相当の動作になる。CI (GitHub Actions) 側でも同じ override をしているのと整合する。
+>
+> `--frozen-lockfile` は CI 環境では pnpm が自動的に有効化するので明示不要 (Cloudflare Workers Builds は `CI=true` を立てる)。
 
 ### Worker secrets の登録 (one-time)
 
