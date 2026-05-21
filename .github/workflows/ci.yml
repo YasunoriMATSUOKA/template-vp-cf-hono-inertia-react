@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+# 最小権限 (defense in depth)。job 単位で必要なら override する。
+permissions:
+  contents: read
+
 jobs:
   audit:
     name: audit & install
@@ -12,6 +16,14 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      # GitHub Actions が full SHA + version comment 形式で pin されているか検証。
+      # Dependabot は SHA+comment 形式を維持するので routine update は問題ないが、
+      # 手で `@v4` 等 mutable ref に書き戻された場合の regression を検知する。
+      - name: Verify actions are pinned to full SHA (pinact)
+        uses: suzuki-shunsuke/pinact-action@cf51507d80d4d6522a07348e3d58790290eaf0b6 # v2.0.0
+        with:
+          skip_push: "true"
 
       - name: Setup pnpm (packageManager 準拠)
         uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
