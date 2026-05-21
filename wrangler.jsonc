@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "todo-app",
+  "main": "./src/server/index.ts",
+  "compatibility_date": "2026-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Workers Assets でクライアントビルド成果物を配信
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "none",
+  },
+  // D1 (Drizzle 経由で利用)
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "todo-app-db",
+      "database_id": "2ea7f372-8225-4b82-8e80-8bf91fd1a9d8",
+      "migrations_dir": "migrations",
+    },
+  ],
+  // R2 (デモではアバター等の置き場として用意。今回の todo では未使用)
+  "r2_buckets": [
+    {
+      "binding": "FILES",
+      "bucket_name": "todo-app-files",
+    },
+  ],
+  // 平文の環境変数
+  "vars": {
+    "APP_URL": "http://localhost:5173",
+  },
+  "observability": {
+    "enabled": true,
+  },
+}

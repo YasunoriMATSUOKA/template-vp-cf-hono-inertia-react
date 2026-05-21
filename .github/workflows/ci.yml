@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm (packageManager 準拠)
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      # 1. lockfile ベース audit (install 前、即 fail-fast)
+      - name: pnpm audit
+        run: pnpm audit
+
+      # 2. install (CI 上だけ minimumReleaseAge を一時無視)
+      #    直前の audit で known vuln 0 が確認済みのため、
+      #    age 制約はゲートとして冗長。security update PR を速やかに install できるようにする。
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile --config.minimum-release-age=0
+
+      # 3. 公式 npm 署名検証 (node_modules ツリーが必要)
+      - name: pnpm audit:signatures
+        run: pnpm audit:signatures
+
+      # 4. type check
+      - name: TypeScript check
+        run: pnpm exec tsc --noEmit --ignoreDeprecations 6.0
+
+      # 5. Vitest
+      - name: Unit tests (Vitest)
+        run: pnpm test:run
+
+      # 6. Playwright browser
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      # 7. Playwright E2E
+      - name: E2E tests (Playwright)
+        run: pnpm e2e
+
+      # 8. build verify (deploy はしない)
+      - name: Build
+        run: pnpm build

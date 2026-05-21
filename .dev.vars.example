@@ -1,0 +1,7 @@
+# Better Auth が署名・暗号化に使うシークレット。openssl rand -base64 32 などで生成
+BETTER_AUTH_SECRET=replace-me-with-random-32-bytes
+
+# Google Cloud Console → OAuth 2.0 クライアント ID から取得
+# 承認済みリダイレクト URI に http://localhost:5173/api/auth/callback/google を追加
+GOOGLE_CLIENT_ID=xxxxxxxxxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx

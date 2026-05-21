@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    # pnpm-lock.yaml と package.json があるディレクトリ。
+    # 単独 repo として運用するので "/"。
+    directory: /
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 5
+
+    # 7 日 cooldown: routine update を publish から 7 日経過するまで待たせる。
+    # security update は Dependabot の別系統で動くので cooldown 無視で即 PR 化される。
+    cooldown:
+      default-days: 7
+
+    # patch/minor は 1 PR にまとめてレビュー負担を減らす。major は個別 PR。
+    groups:
+      patch-and-minor:
+        applies-to: version-updates
+        update-types:
+          - patch
+          - minor
+
+    # PR title prefix
+    commit-message:
+      prefix: deps
+      prefix-development: deps-dev

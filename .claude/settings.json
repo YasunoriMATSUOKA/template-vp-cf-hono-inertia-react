@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm:*)",
+      "Bash(vp:*)",
+      "Bash(gh:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)"
+    ],
+    "ask": [
+      "Bash(pnpm install*minimum-release-age*)",
+      "Bash(pnpm i*minimum-release-age*)",
+      "Bash(vp install*minimum-release-age*)",
+      "Bash(vp migrate:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr close:*)",
+      "Bash(gh issue close:*)"
+    ],
+    "deny": [
+      "Bash(pnpm deploy:*)",
+      "Bash(pnpm db:migrate:remote:*)",
+      "Bash(wrangler:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(rm -rf:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [".claude/hooks/vp-check.sh"],
+            "timeout": 180,
+            "statusMessage": "vp check"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": [".claude/hooks/stop-verify.sh"],
+            "asyncRewake": true,
+            "timeout": 1200,
+            "statusMessage": "verify: vp check / vp test / storybook / playwright"
+          }
+        ]
+      }
+    ]
+  }
+}

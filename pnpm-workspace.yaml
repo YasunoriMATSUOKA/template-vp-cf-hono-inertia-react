@@ -1,0 +1,44 @@
+allowBuilds:
+  "@swc/core": true
+  better-sqlite3: true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  workerd: true
+
+overrides:
+  # GHSA-67mh-4wv8-2f99: esbuild <=0.24.2 dev server リクエスト偽装
+  # drizzle-kit > @esbuild-kit/esm-loader (deprecated) > esbuild@0.18.20 経路。
+  # @esbuild-kit/* は tsx に置き換えられて更新が止まっているので強制 up しか手が無い。
+  esbuild: ">=0.24.3"
+  # GHSA-58qx-3vcg-4xpx: ws <8.20.1 uninitialized memory disclosure
+  # @cloudflare/vite-plugin > miniflare が "ws":"8.18.0" で完全固定。
+  # 最新 miniflare (4.20260518.0) でも同じ pin が確認されたため、override で patch 版に上げる。
+  ws: ">=8.20.1"
+
+# --- サプライチェーン強化 ---
+
+# 公開から 10080 分 (= 7 日) 経過した version のみ install を許可。
+# publish 直後に乗っ取られた version を踏まないための cooldown。
+# 単位は分なので注意 (npm の min-release-age は日単位)。個別除外は
+# minimumReleaseAgeExclude に列挙する。
+minimumReleaseAge: 10080
+
+# 導入時グランドファザリング (2026-05-21 時点で lockfile 内の若い version 48 件)
+# 既に install 済みで動作確認した package を policy 例外として明示的に許可する。
+# 半年に 1 度くらい scripts/find-young-deps.mjs で再生成し、age を超えたものを削る運用。
+minimumReleaseAgeExclude: []
+
+# 新規 install/add で ^/~ を付けず exact 版で書く。
+# 既存の ^ は scripts/pin-deps.mjs で別途剥がす。
+saveExact: true
+
+# engines.node 範囲外の Node で install/run を fail。
+engineStrict: true
+
+# pnpm dev / pnpm test 等の起動前に node_modules と lockfile の同期を強制検証。
+# 'error' で drift 即 fail。'warn' に下げると警告のみ。
+verifyDepsBeforeRun: error
+
+# install 末尾の "X packages are looking for funding" を非表示。
+fund: false

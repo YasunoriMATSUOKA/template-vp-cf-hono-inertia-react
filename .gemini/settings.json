@@ -1,0 +1,7 @@
+{
+  "$schema": "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/packages/cli/src/config/settings.schema.json",
+  "contextFileName": "GEMINI.md",
+  "fileFiltering": {
+    "respectGitIgnore": true
+  }
+}
