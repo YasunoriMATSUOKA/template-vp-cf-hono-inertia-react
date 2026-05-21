@@ -150,10 +150,18 @@ merge が CI green 前提なら実質的に deploy も CI green 前提になる)
 | 真正性ソース (人間が値を保管する場所)                                                                   | 1Password prod vault `template-vp-cf-hono-inertia-react-prod` |
 
 build 手順は `package.json` の `cf:build` script に集約してある
-(`sed (verifyDepsBeforeRun 緩和) → pnpm db:migrate:remote → pnpm build`)。
+(`pnpm db:migrate:remote → pnpm build → pnpm build`)。
 Cloudflare 側の Build command 欄に `pnpm cf:build` を指定する
 (wrangler.jsonc の `build.command` は `@cloudflare/vite-plugin` 配下では ignore されるため、
 dashboard 側に書いて Workers Builds から直接実行させる)。
+
+`pnpm build` を 2 回叩いているのは **意図的**。`@cloudflare/vite-plugin` が
+`todo_app` (worker) 環境を `client` 環境より **先に** build する仕様のため、初回 build
+時点で `dist/client/client/.vite/manifest.json` がまだ存在せず、`src/server/root-view.ts`
+の `import.meta.glob` が空オブジェクトを返してしまう (= production HTML の `<script>` /
+`<link>` が空白になり、画面が真っ白になる)。1 回目で client manifest が disk に出力
+されたあと、2 回目の worker build で root-view.ts が manifest を glob 経由で embed
+できるようになる。
 
 ### 前提リソース (初回 setup の事前準備)
 
