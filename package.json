@@ -12,7 +12,7 @@
     "check": "vp check",
     "test": "vitest",
     "test:run": "vitest run",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --config dist/client/todo_app/wrangler.json",
     "cf-typegen": "wrangler types",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply todo-app-db --local",

@@ -172,7 +172,7 @@ dashboard 側に書いて Workers Builds から直接実行させる)。
 4. **Production branch**: `main`
 5. **Install command**: `pnpm install --frozen-lockfile --config.minimum-release-age=0`
 6. **Build command**: `pnpm cf:build`
-7. **Deploy command**: `pnpm exec wrangler deploy` (デフォルト挙動と同等なので空欄でも可)
+7. **Deploy command**: `pnpm deploy` (= `wrangler deploy --config dist/client/todo_app/wrangler.json`、空欄不可。`@cloudflare/vite-plugin` が build 時に生成する `dist/client/todo_app/wrangler.json` を使わないと wrangler が `src/server/index.ts` を再 bundle してしまい、vite が emit した hashed assets と整合が取れない)
 8. **Node version**: 24 / **Package manager**: pnpm (`packageManager` field から自動判定されるはずだが念のため明示)
 9. Save → 初回 build が走る (後述の bootstrap 済みなら成功するはず)
 
@@ -209,12 +209,17 @@ GitHub 連携設定 UI から開けない。最初の 1 回だけローカルか
 
 ```bash
 pnpm secrets:pull:prod                 # prod vault から .env / .dev.vars を生成
-pnpm build                             # dist/client + Worker bundle
-pnpm exec wrangler deploy              # Worker を新規作成
+pnpm cf:build                          # sed → db:migrate:remote → vite build (dist/client/todo_app/wrangler.json も生成)
+pnpm deploy                            # 上記生成 config 経由で Worker を新規作成
 pnpm exec wrangler secret bulk .dev.vars  # secrets を登録 (上記 dashboard 登録の代替でも OK)
 rm -f .dev.vars .env                   # ローカル secret を即削除
 pnpm secrets:pull:local                # local 開発用に戻す
 ```
+
+`pnpm deploy` は内部で `wrangler deploy --config dist/client/todo_app/wrangler.json`
+を呼ぶ。`todo_app` 部分は worker name `todo-app` のハイフン→アンダースコア変換で
+決まるので、`wrangler.jsonc` の `name` を変えた場合は `package.json` の `deploy`
+script の path も追従させること。
 
 この時点で Worker / D1 schema / Worker secrets が揃った状態になるので、後は Workers
 Builds 接続 → 以降は push to main で自動 deploy される。
