@@ -90,9 +90,21 @@ jobs:
               ;;
             test-storybook)
               pnpm build-storybook
-              npx --yes http-server storybook-static -p 6006 --silent > /tmp/sb.log 2>&1 &
-              npx --yes wait-on http://localhost:6006 --timeout 90000
+              npx --yes http-server storybook-static -p 6006 --silent > /tmp/sb-http.log 2>&1 &
+              HTTP_PID=$!
+              for i in $(seq 1 90); do
+                curl -sf http://localhost:6006 > /dev/null 2>&1 && break
+                sleep 1
+              done
+              if ! curl -sf http://localhost:6006 > /dev/null 2>&1; then
+                echo "Storybook server did not come up within 90s. Log:"
+                cat /tmp/sb-http.log
+                exit 1
+              fi
               pnpm test-storybook
+              RESULT=$?
+              kill $HTTP_PID 2>/dev/null || true
+              exit $RESULT
               ;;
             e2e)
               pnpm exec playwright install --with-deps chromium
