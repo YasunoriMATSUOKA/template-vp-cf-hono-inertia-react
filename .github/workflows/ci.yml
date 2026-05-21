@@ -5,12 +5,6 @@ on:
   push:
     branches: [main]
 
-# pnpm install --config.minimum-release-age=0 を使うと state file に "0" が記録され、
-# pnpm-workspace.yaml の minimumReleaseAge: 10080 と drift する。
-# CI では audit が install 前に通っているため drift を error から warn に下げて許容する。
-env:
-  npm_config_verify_deps_before_run: warn
-
 jobs:
   audit:
     name: audit & install
@@ -28,6 +22,14 @@ jobs:
           node-version: "24"
           cache: pnpm
 
+      # `pnpm install --config.minimum-release-age=0` で install すると state file が
+      # minimumReleaseAge="0" を記録し、workspace.yaml の 10080 と drift する。
+      # この drift を後続 `pnpm <cmd>` が ERR_PNPM_VERIFY_DEPS_BEFORE_RUN で拒むため、
+      # CI 内だけ severity を error → warn に下げる。CLI flag や env では伝播しないので
+      # workspace.yaml を直接書き換える (CI VM 内で完結、commit しない)。
+      - name: Tolerate verify-deps drift in CI
+        run: sed -i 's/^verifyDepsBeforeRun: error$/verifyDepsBeforeRun: warn/' pnpm-workspace.yaml
+
       # 1. lockfile ベース audit (install 前、即 fail-fast)
       - name: pnpm audit
         run: pnpm audit
@@ -36,7 +38,7 @@ jobs:
       - name: pnpm install
         run: pnpm install --frozen-lockfile --config.minimum-release-age=0
 
-      # 3. 公式 npm 署名検証 (install 後の node_modules ツリーが必要)
+      # 3. 公式 npm 署名検証
       - name: pnpm audit:signatures
         run: pnpm audit:signatures
 
@@ -60,6 +62,9 @@ jobs:
         with:
           node-version: "24"
           cache: pnpm
+
+      - name: Tolerate verify-deps drift in CI
+        run: sed -i 's/^verifyDepsBeforeRun: error$/verifyDepsBeforeRun: warn/' pnpm-workspace.yaml
 
       # audit ゲートが既に通っているので、ここは pnpm store cache から高速 install
       - name: pnpm install
