@@ -1,3 +1,7 @@
+# Better Auth が `baseURL` として使うアプリの公開 URL。
+# local dev は http://localhost:5173、prod は Cloudflare dashboard で Worker Secret として登録する想定。
+APP_URL=http://localhost:5173
+
 # Better Auth が署名・暗号化に使うシークレット。openssl rand -base64 32 などで生成
 BETTER_AUTH_SECRET=replace-me-with-random-32-bytes
 

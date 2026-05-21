@@ -10,14 +10,57 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
 cd "$ROOT" || exit 0
 
-# 子プロセスを必ず始末する
+# asyncRewake: true で並走しないよう flock で直列化する。先行 hook が走って
+# いる間は exit 0 で黙ってスキップし、次の turn の Stop hook で再度検証
+# する (Stop hook は毎ターン発火するので検証の網に穴は空かない)。
+LOCKFILE="/tmp/claude-stop-verify-${ROOT//\//_}.lock"
+exec 200>"$LOCKFILE"
+if ! flock -n 200; then
+  exit 0
+fi
+
+# プロジェクトの runtime プロセス (workerd / esbuild service / vp dev /
+# storybook dispatcher) を pgrep + cmdline pattern で一掃する関数。
+# vp dev の MainThread を kill しただけでは workerd 子プロセスが残るため、
+# 明示的に sweep する必要がある。editor の oxfmt/oxlint LSP や tinypool は
+# pattern に当たらないので殺されない (editor 機能は維持)。
+sweep_project_runtime() {
+  local pid cmd
+  for pid in $(pgrep -f "${ROOT}/node_modules/" 2>/dev/null); do
+    [ "$pid" = "$$" ] && continue
+    cmd=$(tr '\0' ' ' < /proc/"$pid"/cmdline 2>/dev/null) || continue
+    case "$cmd" in
+      *workerd*|*esbuild*--service*|*vite-plus-core*cli.js\ dev*|*storybook*dispatcher*)
+        kill -KILL "$pid" 2>/dev/null
+        ;;
+    esac
+  done
+}
+
+# storybook / vp dev は setsid で新 session に隔離し、kill -- -PGID で
+# workerd 子も含めてまとめて殺す。trap 漏れに備えて sweep を最後に呼ぶ。
 SB_PID=""
 VP_PID=""
 cleanup() {
-  [ -n "$SB_PID" ] && kill "$SB_PID" 2>/dev/null && wait "$SB_PID" 2>/dev/null
-  [ -n "$VP_PID" ] && kill "$VP_PID" 2>/dev/null && wait "$VP_PID" 2>/dev/null
+  local pgid pid
+  for pgid in "$SB_PID" "$VP_PID"; do
+    [ -n "$pgid" ] && kill -TERM -- "-$pgid" 2>/dev/null
+  done
+  sleep 2
+  for pgid in "$SB_PID" "$VP_PID"; do
+    [ -n "$pgid" ] && kill -KILL -- "-$pgid" 2>/dev/null
+  done
+  for pid in "$SB_PID" "$VP_PID"; do
+    [ -n "$pid" ] && wait "$pid" 2>/dev/null
+  done
+  sweep_project_runtime
 }
 trap cleanup EXIT
+
+# 前回 hook が timeout / SIGKILL で cleanup できなかった残骸 (orphan
+# workerd / vp dev) を起動前に一掃。これが無いと「並走で生き残った前回
+# の vp dev」が 5173 を握ったまま今回が 5174 に fallback する事故が起きる。
+sweep_project_runtime
 
 # 出力を tail で truncate して Claude の context を圧迫しない
 trunc() { tail -n 200; }
@@ -47,7 +90,7 @@ $(printf '%s' "$out" | trunc)")
 fi
 
 # === 3. Storybook test-runner ===
-./node_modules/.bin/storybook dev -p 6006 --ci --no-open > /tmp/claude-sb-dev.log 2>&1 &
+setsid ./node_modules/.bin/storybook dev -p 6006 --ci --no-open > /tmp/claude-sb-dev.log 2>&1 < /dev/null &
 SB_PID=$!
 if wait_for http://localhost:6006 90; then
   if ! out=$(./node_modules/.bin/test-storybook 2>&1); then
@@ -58,14 +101,16 @@ else
   failures+=("=== storybook server did not come up within 90s ===
 $(tail -n 50 /tmp/claude-sb-dev.log 2>&1)")
 fi
-kill "$SB_PID" 2>/dev/null
+kill -TERM -- "-$SB_PID" 2>/dev/null
+sleep 1
+kill -KILL -- "-$SB_PID" 2>/dev/null
 wait "$SB_PID" 2>/dev/null
 SB_PID=""
 
 # === 4. Playwright e2e ===
 # playwright.config.ts の webServer は `pnpm dev` で pnpm 経由になるので、
 # 先に vp dev を spawn し reuseExistingServer 経由で再利用させる。
-./node_modules/.bin/vp dev > /tmp/claude-vp-dev.log 2>&1 &
+setsid ./node_modules/.bin/vp dev > /tmp/claude-vp-dev.log 2>&1 < /dev/null &
 VP_PID=$!
 if wait_for http://localhost:5173 60; then
   if ! out=$(./node_modules/.bin/playwright test 2>&1); then
@@ -76,7 +121,9 @@ else
   failures+=("=== vp dev server did not come up within 60s ===
 $(tail -n 50 /tmp/claude-vp-dev.log 2>&1)")
 fi
-kill "$VP_PID" 2>/dev/null
+kill -TERM -- "-$VP_PID" 2>/dev/null
+sleep 1
+kill -KILL -- "-$VP_PID" 2>/dev/null
 wait "$VP_PID" 2>/dev/null
 VP_PID=""
 
