@@ -15,12 +15,6 @@ overrides:
   # @cloudflare/vite-plugin > miniflare が "ws":"8.18.0" で完全固定。
   # 最新 miniflare (4.20260518.0) でも同じ pin が確認されたため、override で patch 版に上げる。
   ws: ">=8.20.1"
-  # GHSA-w5hq-g745-h8pq: uuid <11.1.1 v3/v5/v6 で buf 引数のバウンドチェック欠落
-  # @storybook/test-runner > {uuid, jest-junit > uuid, nyc > istanbul-lib-processinfo > uuid}
-  # 全て uuid@^8.3.2 で固定。stable な test-runner は 0.24.4 でまだ uuid@^8 を引いている。
-  # 実 API 使用は v1 / v4 / namespace import のみで v3/v5/v6 の buf 経路は通らないため
-  # 実害は無いが、CI の `pnpm audit` を緑にするため override で patch 版に強制更新する。
-  uuid: ">=11.1.1"
 
 # --- サプライチェーン強化 ---
 
