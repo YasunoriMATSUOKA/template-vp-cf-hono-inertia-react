@@ -20,7 +20,7 @@ export default function PrivacyPolicy() {
           <ul className="list-disc pl-6 space-y-1">
             <li>
               Google アカウント認証経由で取得する情報: メールアドレス、表示名、プロフィール画像
-              URL、 Google アカウント ID
+              URL、Google アカウント ID
             </li>
             <li>利用者が本サービスに登録した Todo の内容、作成・更新・完了の状態</li>
             <li>セッション管理のための Cookie (Better Auth が発行するセッショントークン)</li>
