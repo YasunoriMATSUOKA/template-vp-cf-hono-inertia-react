@@ -1,0 +1,13 @@
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { BrandMark } from "./BrandMark";
+
+const meta: Meta<typeof BrandMark> = { component: BrandMark };
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {};
+
+export const Small: Story = { args: { className: "h-4 w-4" } };
+
+export const Large: Story = { args: { className: "h-16 w-16" } };

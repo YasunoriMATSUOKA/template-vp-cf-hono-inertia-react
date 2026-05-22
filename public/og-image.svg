@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Private Todo">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#064e3b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g transform="translate(96 195)">
+    <rect width="240" height="240" rx="52" fill="#10b981"/>
+    <path d="M64 122 L107 165 L184 80" fill="none" stroke="#ffffff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g fill="#ffffff" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+    <text x="400" y="290" font-size="92" font-weight="700">Private Todo</text>
+    <text x="400" y="360" font-size="34" font-weight="400" fill="#d1fae5">
+      Cloudflare Workers · Hono · Inertia · React
+    </text>
+    <text x="400" y="412" font-size="34" font-weight="400" fill="#d1fae5">
+      Better Auth · Drizzle (D1)
+    </text>
+  </g>
+</svg>

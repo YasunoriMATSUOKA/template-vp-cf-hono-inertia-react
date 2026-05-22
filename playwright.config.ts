@@ -22,7 +22,7 @@ export default defineConfig({
     {
       name: "chromium-unauthenticated",
       use: { browserName: "chromium" },
-      testMatch: /(home|login)\.spec\.ts/,
+      testMatch: /(home|login|privacy-policy|terms-of-service)\.spec\.ts/,
     },
     {
       name: "chromium-authenticated",

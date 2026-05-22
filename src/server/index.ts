@@ -46,6 +46,8 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>()
     const todos = await listTodos(c.var.db, c.var.user.id);
     return c.render("Todos/Index", { ...authProp(c), todos });
   })
+  .get("/privacy-policy", (c) => c.render("PrivacyPolicy", authProp(c)))
+  .get("/terms-of-service", (c) => c.render("TermsOfService", authProp(c)))
   .onError((err, c) => {
     // スタックや DB エラー文言をクライアントに返さない。詳細は Cloudflare の
     // `observability.enabled` 経由で Logpush に流れる console.error のみで見る。
