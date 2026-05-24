@@ -5,7 +5,9 @@ import "../src/client/styles/main.css";
 // `storybook-addon-vis` を全 story に自動 screenshot するモード (`auto: true`) で登録。
 // addon-vitest が story を DOM に mount しない (= `#storybook-root` が生成されない) 構造のため、
 // addon-vitest 単体では視覚回帰が成立しない。本 addon が portable-story の render を仕掛けて
-// 各 story の afterEach で snapshot を撮影し、`__vis__/__baselines__/` 配下に保存する。
+// 各 story の afterEach で snapshot を撮影し、`__vis__/<platform>/__baselines__/` 配下に
+// 保存する (vitest.config.ts の `snapshotRootDir` override で local/CI とも platform 名で
+// 固定。dev WSL も GHA Ubuntu も `__vis__/linux/__baselines__/` を共有)。
 //
 // Storybook 10.3+ では addon-vitest が project annotations を自動適用するため、
 // `vitest.setup.ts` の `setProjectAnnotations` 経由ではなく preview.ts 側で register する
