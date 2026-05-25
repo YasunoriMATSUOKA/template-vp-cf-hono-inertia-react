@@ -37,6 +37,18 @@ coverage/
 .nyc_output/
 __diff_output__/
 
+# === vitest-plugin-vis (Storybook 視覚回帰) ===
+# `__vis__/<platform>/__baselines__/` のみ commit (Linux baseline で local = WSL / CI = GHA ubuntu)。
+# 実行時の actual / diff 出力は git 管理外。
+__vis__/local/
+__vis__/darwin/
+__vis__/win32/
+__vis__/*/__results__/
+__vis__/*/__diffs__/
+
+# Vitest browser mode が一時的に screenshot を置く dir
+.vitest-attachments/
+
 # === Editor / IDE local state ===
 .idea/
 *.iml

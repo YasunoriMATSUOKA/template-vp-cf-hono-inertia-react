@@ -2,7 +2,7 @@ import type { StorybookConfig } from "@storybook/react-vite";
 
 const config: StorybookConfig = {
   stories: ["../src/**/*.stories.@(ts|tsx)"],
-  addons: [],
+  addons: ["@storybook/addon-vitest", "storybook-addon-vis"],
   framework: { name: "@storybook/react-vite", options: {} },
   viteFinal: async (config) => {
     // cloudflare plugin は workerd 起動が前提で Storybook では動かない

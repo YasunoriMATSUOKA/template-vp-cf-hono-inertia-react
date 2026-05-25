@@ -1,6 +1,25 @@
 import { defineConfig } from "vitest/config";
+import { storybookTest } from "@storybook/addon-vitest/vitest-plugin";
+import { storybookVis } from "storybook-addon-vis/vitest-plugin";
+import { playwright } from "@vitest/browser-playwright";
+import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Vitest workspace 構成。2 project に分ける:
+//   - unit:      既存の Node 環境ユニット test (src/**/*.test.ts)
+//   - storybook: Storybook の CSF stories を `@storybook/addon-vitest` が test に変換し、
+//                playwright provider + headless chromium で実行。
+//                視覚回帰は `.storybook/preview.ts` で register した `addonVis({ auto: true })`
+//                を `storybook-addon-vis` が拾い、portable-story の render 完了 afterEach で
+//                自動的に screenshot 比較する (`.storybook/vitest.setup.ts` は CSS load のみで
+//                screenshot 自体には関与しない)。matcher は addon-vis 内蔵の
+//                `toMatchImageSnapshot` (= vitest-plugin-vis 由来、jest-image-snapshot ではない)。
+//
+// storybook project の vite plugin は `.storybook/main.ts` の viteFinal が
+// cloudflare / inertia plugin を filter する (browser mode で workerd が起動しないよう)。
 export default defineConfig({
   resolve: {
     alias: {
@@ -8,7 +27,52 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["src/**/*.test.ts"],
-    environment: "node",
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          include: ["src/**/*.test.ts"],
+          environment: "node",
+        },
+      },
+      {
+        extends: true,
+        plugins: [
+          // `tailwindcss/vite` を明示登録する: addon-vitest が `.storybook/main.ts` の
+          // viteFinal を経由して vite config を組み立てる際、root の vite.config.ts plugin が
+          // 確実に継承されない (storybook の standalone build 用に独立した plugin chain を作る)
+          // ので、Tailwind v4 が utility class を生成できず素 HTML だけが render される。
+          // 視覚回帰の baseline が無意味になるので、storybook project には明示的に Tailwind を
+          // 差し込む。
+          tailwindcss(),
+          // `storybookVis` は vitest-plugin-vis の server-side plugin で、auto-snapshot 撮影 +
+          // baseline 比較を駆動する (撮影トリガ自体は preview.ts の `addonVis({ auto: true })`
+          // 側で仕掛けられ、本 plugin は baseline path 解決と比較ロジックを供給)。matcher は
+          // addon-vis 内蔵の `toMatchImageSnapshot` (vitest-plugin-vis 由来で jest-image-snapshot
+          // とは別実装)。順序は `storybookTest` の前。
+          //
+          // `snapshotRootDir` を platform 名で固定: vitest-plugin-vis の default は local では
+          // `__vis__/local/` を使い CI では `__vis__/<process.platform>/` (= linux on GHA) に
+          // 分岐するため、何もしないと local の baseline を commit しても CI で comparison が
+          // 通らない (baseline path が異なる)。dev が WSL/Linux 前提なので両方 linux に揃える。
+          // mac/win から baseline 更新する場合は Docker か act 経由で linux 上で再生成する。
+          storybookVis({
+            snapshotRootDir: ({ rootDir, platform }) => `${rootDir}/${platform}`,
+          }),
+          storybookTest({ configDir: path.join(__dirname, ".storybook") }),
+        ],
+        test: {
+          name: "storybook",
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright({}),
+            instances: [{ browser: "chromium" }],
+          },
+          setupFiles: [".storybook/vitest.setup.ts"],
+        },
+      },
+    ],
   },
 });

@@ -105,24 +105,13 @@ jobs:
               pnpm build-storybook
               ;;
             test-storybook)
-              pnpm build-storybook
-              # test-storybook は内部で Playwright (chromium) を使う
+              # `pnpm test-storybook` は `vitest run --project storybook` (Vitest 4 browser mode
+              # + @vitest/browser-playwright + @storybook/addon-vitest + storybook-addon-vis)。
+              # 旧来必要だった `pnpm build-storybook` + `http-server` 経由の Storybook iframe
+              # 提供は不要 (Vitest が直接 portable-story を render する)。
+              # Playwright chromium だけは引き続き必要。
               pnpm exec playwright install --with-deps chromium
-              npx --yes http-server storybook-static -p 6006 --silent > /tmp/sb-http.log 2>&1 &
-              HTTP_PID=$!
-              for i in $(seq 1 90); do
-                curl -sf http://localhost:6006 > /dev/null 2>&1 && break
-                sleep 1
-              done
-              if ! curl -sf http://localhost:6006 > /dev/null 2>&1; then
-                echo "Storybook server did not come up within 90s. Log:"
-                cat /tmp/sb-http.log
-                exit 1
-              fi
               pnpm test-storybook
-              RESULT=$?
-              kill $HTTP_PID 2>/dev/null || true
-              exit $RESULT
               ;;
             e2e)
               pnpm exec playwright install --with-deps chromium
