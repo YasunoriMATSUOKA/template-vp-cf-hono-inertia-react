@@ -34,7 +34,7 @@
     "@inertiajs/react": "3.1.1",
     "better-auth": "1.6.11",
     "drizzle-orm": "0.45.2",
-    "hono": "4.12.19",
+    "hono": "4.12.21",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "zod": "4.4.3"
@@ -46,7 +46,7 @@
     "@storybook/react-vite": "10.4.0",
     "@tailwindcss/vite": "4.3.0",
     "@types/better-sqlite3": "7.6.13",
-    "@types/react": "19.2.14",
+    "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
     "@vitest/browser": "4.1.6",
@@ -59,7 +59,7 @@
     "tailwindcss": "4.3.0",
     "typescript": "6.0.3",
     "vite": "8.0.13",
-    "vite-plus": "0.1.21",
+    "vite-plus": "0.1.22",
     "vitest": "4.1.6",
     "wrangler": "4.93.0",
     "yaml": "2.9.0"
