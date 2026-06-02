@@ -39,7 +39,9 @@ TypeScript 6 系。テストは Vitest (unit) / Playwright (E2E) / Storybook + t
 | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
 | 開発サーバ                                                               | `pnpm dev`                                                                             |
 | 本番ビルド                                                               | `pnpm build`                                                                           |
-| 型 + lint まとめ                                                         | `pnpm check`                                                                           |
+| 型 + lint + 不要コード/循環参照 まとめ                                   | `pnpm check`                                                                           |
+| 不要コード検出 (未使用 file / export / dep)                              | `pnpm knip`                                                                            |
+| 循環参照 / client⇔server 境界の検査                                      | `pnpm depcruise`                                                                       |
 | Vitest watch                                                             | `pnpm test`                                                                            |
 | Vitest 単発                                                              | `pnpm test:run`                                                                        |
 | Playwright E2E                                                           | `pnpm e2e`                                                                             |
@@ -80,7 +82,7 @@ TypeScript 6 系。テストは Vitest (unit) / Playwright (E2E) / Storybook + t
 
 ## Toolchain
 
-- Node `>=20.0.0`
+- Node `^20.19.0 || ^22.12.0 || >=24` (knip / dependency-cruiser の engines 要件に合わせた範囲。`engineStrict: true` のため範囲外の Node では install/run が fail する。CI / Workers Builds は Node 24)
 - pnpm `11.1.3` (`packageManager` で固定、`engineStrict: true` で範囲外は install/run fail)
 - 推奨: `corepack enable` してから pnpm を呼ぶ (CI は packageManager から自動解決)
 
@@ -191,6 +193,46 @@ pnpm exec tsc --noEmit --ignoreDeprecations 6.0
 
 `--ignoreDeprecations 6.0` は TS 6.0 系の deprecation 警告抑制 (依存側がまだ古い API を使うため)。
 依存が追従したら外す。
+
+## 静的解析 (dead-code 検出 / 循環参照防止)
+
+- **knip** (`knip.json`) — 未使用 file / export / type / dependency / unresolved import を検出
+- **dependency-cruiser** (`.dependency-cruiser.cjs`) — `no-circular` (循環参照) + client⇔server 境界 + recommended hygiene
+
+両者は `pnpm check` に連結済み (`vp check && knip --no-config-hints && depcruise src --config .dependency-cruiser.cjs`) なので、**CI の `check` matrix task が
+`pnpm check` を走らせるだけで自動的に gate になる** (`.github/workflows/ci.yml` は変更不要)。単体実行は
+`pnpm knip` / `pnpm depcruise`。本物の dead-code / 循環は同じ PR で解消し、gate は常に green を保つ。
+
+### knip (`knip.json`)
+
+- entry は `src/client/main.tsx` と `scripts/*.mjs` のみ明示。`src/server/index.ts` は knip 内蔵の
+  **wrangler plugin** が `wrangler.jsonc` の `main` から自動検出する。test (`*.test.ts`) / story
+  (`*.stories.tsx`) / e2e spec / drizzle schema は vitest・storybook・playwright・drizzle plugin が
+  自動で entry 化するので列挙不要。`import.meta.glob` で読む Inertia pages も knip が解決する。
+- `ignoreUnresolved: ["~/client/pages.gen"]` は **必須**。`src/client/pages.gen.ts` は自動生成で
+  fresh CI の `check` task には存在せず、それを型 import する箇所が unresolved になるため。ローカルでは
+  pages.gen.ts が在るので「redundant」hint が出るが設定としては正しいので、`pnpm check` / `pnpm knip` は
+  `--no-config-hints` で hint だけ抑制している (実エラーは従来どおり non-zero exit)。
+- `daisyui` は `src/client/styles/main.css` の `@plugin` 経由を knip が解決するため ignore 不要。
+- 誤検知は blanket ignore せず `ignore` / `ignoreDependencies` / `ignoreUnresolved` にピンポイント追記する。
+
+### dependency-cruiser (`.dependency-cruiser.cjs`)
+
+- `dependency-cruiser/configs/recommended-strict` を土台に、`client-no-server` / `server-no-client` の
+  2 ルールで SSR/CSR 境界を error 強制。走査対象は `src`。
+- `tsPreCompilationDeps: false` (既定) で **runtime import のみ** 追従する。これにより (1) 型のみの越境共有
+  (client→server の `import type`、例: pages.gen) は境界違反にならず、(2) CI で pages.gen.ts が不在でも
+  型 import を辿らないため `not-to-unresolvable` が誤発火しない。
+- `enhancedResolveOptions` で package `exports` の subpath (`hono/csrf` / `better-auth/react` 等) を解決する
+  (既定では exports を読まず unresolvable になる)。
+- `exclude`: test / story / 自動生成物 (`pages.gen.ts` / `worker-configuration.d.ts`)、および型専用で runtime 辺を
+  持たない `src/client/features/todos/types.ts` (knip 側で使用確認済み) を除外。
+
+### 依存の追加・更新
+
+knip / dependency-cruiser とも devDependency。`saveExact` で exact 固定し `minimumReleaseAge` (7 日) の対象。
+version を上げる時は「Supply chain policy」の手順に従い、`pnpm install --frozen-lockfile` が通ること・
+`node scripts/find-young-deps.mjs` が 0 件であることを確認する (young 版が増えたら `minimumReleaseAgeExclude` に追記)。
 
 ## 触らないもの
 
