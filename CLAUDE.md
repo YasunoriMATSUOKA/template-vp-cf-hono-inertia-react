@@ -82,7 +82,7 @@ TypeScript 6 系。テストは Vitest (unit) / Playwright (E2E) / Storybook + t
 
 ## Toolchain
 
-- Node `>=20.0.0`
+- Node `^20.19.0 || ^22.12.0 || >=24` (knip / dependency-cruiser の engines 要件に合わせた範囲。`engineStrict: true` のため範囲外の Node では install/run が fail する。CI / Workers Builds は Node 24)
 - pnpm `11.1.3` (`packageManager` で固定、`engineStrict: true` で範囲外は install/run fail)
 - 推奨: `corepack enable` してから pnpm を呼ぶ (CI は packageManager から自動解決)
 
@@ -199,7 +199,7 @@ pnpm exec tsc --noEmit --ignoreDeprecations 6.0
 - **knip** (`knip.json`) — 未使用 file / export / type / dependency / unresolved import を検出
 - **dependency-cruiser** (`.dependency-cruiser.cjs`) — `no-circular` (循環参照) + client⇔server 境界 + recommended hygiene
 
-両者は `pnpm check` に連結済み (`vp check && knip && depcruise`) なので、**CI の `check` matrix task が
+両者は `pnpm check` に連結済み (`vp check && knip --no-config-hints && depcruise src --config .dependency-cruiser.cjs`) なので、**CI の `check` matrix task が
 `pnpm check` を走らせるだけで自動的に gate になる** (`.github/workflows/ci.yml` は変更不要)。単体実行は
 `pnpm knip` / `pnpm depcruise`。本物の dead-code / 循環は同じ PR で解消し、gate は常に green を保つ。
 
