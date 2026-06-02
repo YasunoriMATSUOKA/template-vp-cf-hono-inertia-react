@@ -180,7 +180,7 @@ merge が CI green 前提なら実質的に deploy も CI green 前提になる)
 
 | 領域                                                                                                    | 担当                                                          |
 | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| PR / main への push 時の test, lint, type check, e2e, audit, signatures                                 | GitHub Actions (`ci.yml`)                                     |
+| PR / main への push 時の test, lint, type check, dead-code/循環参照, e2e, audit, signatures             | GitHub Actions (`ci.yml`)                                     |
 | CI green の強制                                                                                         | GitHub branch protection (`main` の必須 status check)         |
 | main push 後の build + D1 migration + deploy                                                            | Cloudflare Workers Builds                                     |
 | Worker runtime secrets (`APP_URL` / `BETTER_AUTH_SECRET` / `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`) | Cloudflare dashboard (一度登録すれば deploy 越しに保持される) |
@@ -248,6 +248,10 @@ GitHub repo → **Settings** → **Branches** → main の branch protection rul
 - 必須 check に `audit & install` および `verify (check)` / `verify (build)` /
   `verify (test)` / `verify (build-storybook)` / `verify (test-storybook)` /
   `verify (e2e)` の **7 件** を登録 (= `ci.yml` の全 job)
+
+`verify (check)` は `pnpm check` (= `vp check` の format/lint/型 + **knip** の不要コード検出 +
+**dependency-cruiser** の循環参照 / client⇔server 境界検査) を走らせる。静的解析を `pnpm check` に
+連結してあるので、`ci.yml` を変更せずにこの gate へ含めている (詳細は `CLAUDE.md`「静的解析」節)。
 
 ### 初回 bootstrap deploy (Workers Builds 接続前に推奨)
 
