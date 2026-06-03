@@ -21,7 +21,7 @@ jobs:
       # Dependabot は SHA+comment 形式を維持するので routine update は問題ないが、
       # 手で `@v4` 等 mutable ref に書き戻された場合の regression を検知する。
       - name: Verify actions are pinned to full SHA (pinact)
-        uses: suzuki-shunsuke/pinact-action@cf51507d80d4d6522a07348e3d58790290eaf0b6 # v2.0.0
+        uses: suzuki-shunsuke/pinact-action@896d595f299e71d65b9d28349d6956abe144390a # v3.0.0
         with:
           skip_push: "true"
 
