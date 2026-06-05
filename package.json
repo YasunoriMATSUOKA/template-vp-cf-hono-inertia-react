@@ -31,7 +31,7 @@
     "secrets:pull:ci": "node scripts/secrets-pull.mjs local .dev.vars"
   },
   "dependencies": {
-    "@hono/inertia": "0.2.0",
+    "@hono/inertia": "0.3.0",
     "@hono/zod-validator": "0.8.0",
     "@inertiajs/react": "3.3.0",
     "better-auth": "1.6.11",
