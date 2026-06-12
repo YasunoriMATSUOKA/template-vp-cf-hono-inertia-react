@@ -36,6 +36,10 @@ export default defineConfig({
     outDir: "dist/client",
   },
   staged: {
-    "*.{js,jsx,ts,tsx,mjs,cjs}": "vp check --fix",
+    // CI の `pnpm check` (= `vp check`) はリポジトリ全体を format 検証するので、
+    // pre-commit の glob も vp が format する拡張子 (md / json / yaml / css 等) を
+    // 網羅する。JS/TS だけだと README.md などの format 崩れが commit を通過し、
+    // CI の `check` task で初めて落ちる (過去に発生)。
+    "*.{js,jsx,ts,tsx,mjs,cjs,json,jsonc,md,css,yml,yaml}": "vp check --fix",
   },
 });

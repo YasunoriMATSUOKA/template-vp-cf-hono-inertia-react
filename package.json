@@ -24,6 +24,9 @@
     "test-storybook": "vitest run --project storybook",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
+    "chromatic": "chromatic",
+    "chromatic:storybook": "chromatic --storybook-build-dir storybook-static",
+    "chromatic:playwright": "chromatic --playwright",
     "audit:signatures": "npx --yes npm@latest audit signatures",
     "secrets:pull": "node scripts/secrets-pull.mjs",
     "secrets:pull:local": "node scripts/secrets-pull.mjs local",
@@ -42,6 +45,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@chromatic-com/playwright": "0.14.5",
     "@cloudflare/vite-plugin": "1.40.0",
     "@playwright/test": "1.60.0",
     "@storybook/addon-vitest": "10.4.2",
@@ -54,6 +58,7 @@
     "@vitest/browser": "4.1.8",
     "@vitest/browser-playwright": "4.1.8",
     "better-sqlite3": "12.10.0",
+    "chromatic": "17.2.0",
     "daisyui": "5.5.20",
     "dependency-cruiser": "17.4.3",
     "drizzle-kit": "0.31.10",

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "@chromatic-com/playwright";
 
 test("未ログインのホームでログインリンクが見える", async ({ page }) => {
   await page.goto("/");
