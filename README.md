@@ -157,6 +157,7 @@ AI / コードでは完結しない。以下を人間オペレーターが 1 回
    - `CHROMATIC_PLAYWRIGHT_PROJECT_TOKEN` — Playwright (E2E) 用 project の token
 
    (`OP_SERVICE_ACCOUNT_TOKEN` は CI の e2e で使う既存 secret を流用するので追加作業なし。)
+
 3. 最初の Chromatic 実行で取得したスナップショットが各 project の baseline になる。以降の変化が diff
    としてレビュー対象になる。`exitZeroOnChanges: true` のため視覚変化は CI 失敗にせずレビュー扱い
    (必ずゲートにしたい場合は `chromatic.yml` の同設定を外す)。
