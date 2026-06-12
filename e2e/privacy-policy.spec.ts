@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "@chromatic-com/playwright";
 
 test("プライバシーポリシーページが直接 URL で開ける", async ({ page }) => {
   await page.goto("/privacy-policy");

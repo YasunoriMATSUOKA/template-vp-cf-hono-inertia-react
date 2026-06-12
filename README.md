@@ -128,6 +128,54 @@ local 開発と CI で同じになるので、テスト用に独立した値を�
   gate 通過後の `verify` job 内、**`matrix.task == 'e2e'` の inject step 限定**でしか
   env に置かれない。詳細は上記「CI (GitHub Actions) からの pull」節を参照
 
+## Chromatic (ビジュアル回帰 — クラウド)
+
+Storybook と Playwright (E2E) の実行結果を [Chromatic](https://www.chromatic.com) に連携し、
+クラウド上でビジュアル diff のレビューができる。`storybook-addon-vis` のローカル/CI 完結な
+ビジュアル回帰 (`__vis__/`) は併用しており、Chromatic はクラウド側のレビュー基盤として追加している。
+
+> **Chromatic は Storybook と E2E (Playwright) で別プロジェクトを要求する。**同一 repo に
+> リンクした 2 つの Chromatic project を作り、それぞれの project token で CI を 2 回走らせる構成。
+> token も 2 つ必要 ([Combine stories & E2E](https://www.chromatic.com/docs/combine-stories-e2e/))。
+
+- **専用 workflow**: `.github/workflows/chromatic.yml` (ci.yml には手を入れない)。2 job 構成:
+  - `chromatic-storybook` — `pnpm build-storybook` の出力を [`chromaui/action`](https://github.com/chromaui/action) でアップロード
+  - `chromatic-playwright` — E2E を実行し各ページの archive を生成、`chromatic --playwright` でアップロード
+    (`pnpm dev` が `.dev.vars` を読むため ci.yml の e2e task と同じ 1Password 注入を行う)
+- E2E spec は `import { test, expect } from "@chromatic-com/playwright"` (Playwright の薄いラッパー)。
+  Chromatic 非実行時は通常の Playwright として動くので、ci.yml の `e2e` task はそのまま緑のまま。
+  特定地点で追加スナップショットが欲しい場合のみ `takeSnapshot(page, testInfo)` を足す。
+
+### 手作業の初期 setup
+
+AI / コードでは完結しない。以下を人間オペレーターが 1 回だけ行う:
+
+1. <https://www.chromatic.com> に GitHub でサインインし、この repo をリンクした Chromatic project を
+   **2 つ**作成する (例: `...-storybook` と `...-playwright`)。それぞれの **project token** を取得する。
+2. repo の **Settings → Secrets and variables → Actions** に 2 つの token を登録する:
+   - `CHROMATIC_STORYBOOK_PROJECT_TOKEN` — Storybook 用 project の token
+   - `CHROMATIC_PLAYWRIGHT_PROJECT_TOKEN` — Playwright (E2E) 用 project の token
+
+   (`OP_SERVICE_ACCOUNT_TOKEN` は CI の e2e で使う既存 secret を流用するので追加作業なし。)
+3. 最初の Chromatic 実行で取得したスナップショットが各 project の baseline になる。以降の変化が diff
+   としてレビュー対象になる。`exitZeroOnChanges: true` のため視覚変化は CI 失敗にせずレビュー扱い
+   (必ずゲートにしたい場合は `chromatic.yml` の同設定を外す)。
+
+### ローカルから手動実行
+
+token は `.dev.vars` / `.env` には入れず、環境変数として渡す。Storybook 用 / Playwright 用で
+**別の token** を使う点に注意 (chromatic CLI は `CHROMATIC_PROJECT_TOKEN` env を読む):
+
+```sh
+# Storybook (Storybook 用 project の token)
+pnpm build-storybook
+CHROMATIC_PROJECT_TOKEN=<storybook-token> pnpm chromatic:storybook
+
+# Playwright (.dev.vars が必要 / Playwright 用 project の token)
+pnpm e2e
+CHROMATIC_PROJECT_TOKEN=<playwright-token> pnpm chromatic:playwright
+```
+
 ## Runtime hardening (Hono Worker 側の defense in depth)
 
 実装済 (`src/server/`):

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "@chromatic-com/playwright";
 
 test("ログインページに Google ボタンがある", async ({ page }) => {
   await page.goto("/login");

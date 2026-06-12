@@ -32,6 +32,7 @@ test-results/
 playwright-report/
 playwright/.cache/
 blob-report/
+chromatic-archives/
 coverage/
 *.lcov
 .nyc_output/

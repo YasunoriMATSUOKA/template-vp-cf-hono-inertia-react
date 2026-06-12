@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "@chromatic-com/playwright";
 
 test("todo を追加・toggle・削除できる", async ({ page }) => {
   await page.goto("/todos");
