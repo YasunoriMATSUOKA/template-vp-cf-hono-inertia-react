@@ -15,6 +15,12 @@ overrides:
   # @cloudflare/vite-plugin > miniflare が "ws":"8.18.0" で完全固定。
   # 最新 miniflare (4.20260518.0) でも同じ pin が確認されたため、override で patch 版に上げる。
   ws: ">=8.20.1"
+  # @better-auth/kysely-adapter@1.6.14 は kysely root から
+  # DEFAULT_MIGRATION_TABLE / DEFAULT_MIGRATION_LOCK_TABLE を import するが、
+  # kysely 0.29.0 でこれらの root re-export が削除され build が [MISSING_EXPORT] で失敗する。
+  # adapter の互換宣言 (^0.28.17 || ^0.29.0) の ^0.29 が誤り。symbol が再公開されるか
+  # adapter が deep import / 自前定義に変わるまで、互換のある 0.28.17 に固定する。
+  kysely: 0.28.17
 
 # --- サプライチェーン強化 ---
 
