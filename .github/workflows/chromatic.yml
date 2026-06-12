@@ -95,7 +95,9 @@ jobs:
       - name: Install Playwright chromium
         run: pnpm exec playwright install --with-deps chromium
 
-      # `@chromatic-com/playwright` が各ページの archive を test-results/ 配下に生成する。
+      # `@chromatic-com/playwright` が各ページの archive を `test-results/chromatic-archives/`
+      # (= Playwright の outputDir 既定 `test-results` 内の `chromatic-archives/` サブフォルダ) に生成し、
+      # 後続の `chromatic --playwright` が同じ既定パスから読み取る (CHROMATIC_ARCHIVE_LOCATION で上書き可)。
       - name: Run E2E (generates Chromatic archives)
         run: pnpm e2e
 
