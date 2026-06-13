@@ -1,13 +1,29 @@
 import { defineConfig } from "@playwright/test";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STORAGE_STATE = path.join(__dirname, "e2e/.auth/storage-state.json");
 
+// .env / .dev.vars (KEY=VALUE) を process.env に流し込む (未設定のキーのみ)。
+// Mailosaur 資格情報 (.env) を global-setup / spec / メールリレーが参照できるようにするため。
+// (Mailosaur はテスト基盤専用なので Worker ランタイムの .dev.vars ではなく .env 側に置く)
+for (const file of [".env", ".dev.vars"]) {
+  const p = path.join(__dirname, file);
+  if (!fs.existsSync(p)) continue;
+  for (const line of fs.readFileSync(p, "utf8").split("\n")) {
+    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2];
+  }
+}
+
 export default defineConfig({
   testDir: "./e2e",
   globalSetup: "./e2e/global-setup.ts",
+  // `pnpm dev` は scripts/dev.mjs (メールリレー + vp dev を同時起動) なので、
+  // E2E でもこれ 1 つで「Worker + Mailosaur リレー」が揃う。MAIL_RELAY_URL は
+  // .dev.vars に常設済みなので事前準備 (toggle) は不要。
   webServer: {
     command: "pnpm dev",
     url: "http://localhost:5173",
@@ -35,7 +51,8 @@ export default defineConfig({
     {
       name: "chromium-unauthenticated",
       use: { browserName: "chromium" },
-      testMatch: /(home|login|privacy-policy|terms-of-service)\.spec\.ts/,
+      testMatch:
+        /(home|login|privacy-policy|terms-of-service|auth-signup-verify|auth-password-reset|auth-change-email|auth-change-password)\.spec\.ts/,
     },
     {
       name: "chromium-authenticated",

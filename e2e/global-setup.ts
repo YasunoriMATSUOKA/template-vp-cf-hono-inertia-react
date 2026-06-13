@@ -2,43 +2,50 @@ import { request } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { findLink, mailosaurConfigured, uniqueEmail, waitForEmail } from "./mailosaur";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export const TEST_USER = {
-  email: "e2e-test@example.com",
-  password: "e2e-test-password-1234",
-  name: "E2E Test",
-};
-
 export const STORAGE_STATE = path.join(__dirname, ".auth/storage-state.json");
+export const TEST_PASSWORD = "e2e-test-password-1234";
 
+const BASE_URL = "http://localhost:5173";
+
+// chromium-authenticated プロジェクト (todos.spec.ts) 用に、
+// メール確認まで完了した検証済みユーザーのセッションを storageState として用意する。
+// 本番同様 requireEmailVerification が有効 (MAIL_RELAY_URL あり) なので、
+// サインアップ → Mailosaur で確認メール取得 → verify リンク (autoSignInAfterVerification)
+// の完全フローを通してから cookie を保存する。
 export default async function globalSetup() {
   fs.mkdirSync(path.dirname(STORAGE_STATE), { recursive: true });
-  const baseURL = "http://localhost:5173";
-  // Better Auth は CSRF 防御として Origin ヘッダ必須 (MISSING_OR_NULL_ORIGIN を返す)
+
+  if (!mailosaurConfigured) {
+    throw new Error(
+      "globalSetup: MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID が未設定です。" +
+        " .dev.vars に Mailosaur 資格情報を設定してください (README の Mailosaur 節参照)。",
+    );
+  }
+
+  const email = uniqueEmail("todos-user");
   const ctx = await request.newContext({
-    baseURL,
-    extraHTTPHeaders: { Origin: baseURL },
+    baseURL: BASE_URL,
+    extraHTTPHeaders: { Origin: BASE_URL },
   });
 
-  // 初回は sign-up を試す。既存ユーザーなら 422/400 系で失敗するので sign-in にフォールバック。
   const signUp = await ctx.post("/api/auth/sign-up/email", {
-    data: TEST_USER,
+    data: { email, password: TEST_PASSWORD, name: "E2E Todos User" },
     failOnStatusCode: false,
   });
-
   if (!signUp.ok()) {
-    const signIn = await ctx.post("/api/auth/sign-in/email", {
-      data: { email: TEST_USER.email, password: TEST_USER.password },
-      failOnStatusCode: false,
-    });
-    if (!signIn.ok()) {
-      throw new Error(
-        `globalSetup: sign-up と sign-in 両方失敗。status: signUp=${signUp.status()}, signIn=${signIn.status()}, signInBody=${await signIn.text()}`,
-      );
-    }
+    throw new Error(
+      `globalSetup: sign-up 失敗 status=${signUp.status()} body=${await signUp.text()}`,
+    );
   }
+
+  // 確認メールを Mailosaur から取得し、verify リンクを踏む (= 自動ログイン)。
+  const message = await waitForEmail(email);
+  const verifyLink = findLink(message, "/api/auth/verify-email");
+  await ctx.get(verifyLink);
 
   await ctx.storageState({ path: STORAGE_STATE });
   await ctx.dispose();
