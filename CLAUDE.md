@@ -92,10 +92,13 @@ TypeScript 6 系。テストは Vitest (unit) / Playwright (E2E) / Storybook + t
 
 - **`saveExact: true`** — 新規 `pnpm add` は exact 版で書く。`^` / `~` を勝手に付けない
 - **`minimumReleaseAge: 10080`** (分 = 7 日) — publish から 7 日未満の version は install 不可。
-  例外は `minimumReleaseAgeExclude` (grandfather list) に明示列挙する。Cloudflare Workers
-  Builds は dashboard に install command 指定欄が無く、`--config.minimum-release-age=0` を
-  渡せない一方、env var (`npm_config_minimum_release_age=0`) でも policy override が効かない
-  ため、exclude list の保守が deploy 通過の唯一の経路
+  例外は `minimumReleaseAgeExclude` (grandfather list) に **exact version (`name@version`) で**明示列挙する。
+  bare name / glob (`@scope/*`) でも効くが、それだと当該 package の全 version が gate 対象外になり
+  security が緩むため、**exact version 固定で「列挙した特定版のみ免除・将来版は 7 日 gate 維持」**とする。
+  リストは `node scripts/find-young-deps.mjs` の出力 (`- "name@version"` 形式) で**全置換**して保守する
+  (漏れ=install fail / 余り=stale)。Cloudflare Workers Builds は dashboard に install command 指定欄が無く、
+  `--config.minimum-release-age=0` を渡せない一方、env var (`npm_config_minimum_release_age=0`) でも
+  policy override が効かないため、exclude list の保守が deploy 通過の唯一の経路
 - **`engineStrict: true`** — `engines.node` / `engines.pnpm` 範囲外で install/run fail
 - **`verifyDepsBeforeRun: error`** — node_modules と lockfile が drift していたら即 fail。
   以前は `--config.minimum-release-age=0` で生まれる state file の drift を許容するため
@@ -115,8 +118,9 @@ SHA と comment を一緒に更新する。
 新規パッケージ追加時に `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` を見たら:
 
 1. その version がまだ 7 日経っていない → 待つ (最も安全)
-2. 急ぎ必要 → `node scripts/find-young-deps.mjs` の出力を `minimumReleaseAgeExclude`
-   に追記して同 PR に含める。`pnpm install --frozen-lockfile` が override 無しで通れば OK
+2. 急ぎ必要 → `node scripts/find-young-deps.mjs` の出力 (exact version 行) で
+   `minimumReleaseAgeExclude` を全置換して同 PR に含める。`pnpm install --frozen-lockfile` が
+   override 無しで通れば OK
 3. ローカル限定の一時 override → `pnpm install --frozen-lockfile --config.minimum-release-age=0`
    (CI / Cloudflare には override 経路が無いので、PR を投げる前に必ず 2 で exclude を更新する)
 
@@ -168,15 +172,23 @@ artifact upload 等で secret がリークしないようにする。GitHub-host
 
 ## Dependabot policy (`.github/dependabot.yml`)
 
-2 ecosystem を並走させる。両方とも daily / 最大 5 PR / 7 日 cooldown / patch+minor を 1 PR に group:
+2 ecosystem を並走させる。両方とも daily / 最大 5 PR / patch+minor を 1 PR に group:
 
-- **npm** — `package.json` / `pnpm-lock.yaml`。commit prefix は `deps` / `deps-dev` (dev dep)
-- **github-actions** — `.github/workflows/**`。commit prefix は `ci`。`uses:` が
+- **npm** — `package.json` / `pnpm-lock.yaml`。commit prefix は `deps` / `deps-dev` (dev dep)。
+  **cooldown 8 日** = `minimumReleaseAge` (7 日) + 1 日 buffer の意図的カップリング。これで
+  routine version-update PR は常に「install gate (7 日) を超えた版」を対象に開かれ、**即 merge しても
+  CI green かつ Cloudflare deploy が通る** (= deploy-fail PR が自動生成されない)。cooldown は日単位・
+  minimumReleaseAge は分単位なので、buffer が粒度差と clock skew を吸収する。**この 2 値は常に
+  cooldown > minimumReleaseAge を保つこと** (片方だけ変えない)
+- **github-actions** — `.github/workflows/**`。commit prefix は `ci`。cooldown 7 日。`uses:` が
   `<full-sha> # vX.Y.Z` 形式で pin されているため、Dependabot は SHA と version comment を
-  同時に更新する
+  同時に更新する (age gate 対象外なので deploy fail には無関係)
 
-security update は cooldown 無視で即 PR (Dependabot 標準動作、追加 config 不要)。
-security PR マージ直後にローカルで install が fail する場合の workaround は `README.md` の同名節を参照。
+security update は cooldown を **bypass** する仕様 (version-update 専用)。そのため稀に 7 日未満の版を持つ
+PR が生成され得るが、その PR は CI `audit` job の `pnpm install --frozen-lockfile` で fail (赤) し
+branch protection が merge をブロックするため **Cloudflare には到達しない**。対応は同 PR 内で該当
+exact version を `minimumReleaseAgeExclude` に追記して緑にする (`README.md` の同名節を参照)。
+これ以上の自動化は `minimumReleaseAge` を下げない限り不可能。
 
 ## Testing layers
 
@@ -232,13 +244,16 @@ pnpm exec tsc --noEmit --ignoreDeprecations 6.0
 
 knip / dependency-cruiser とも devDependency。`saveExact` で exact 固定し `minimumReleaseAge` (7 日) の対象。
 version を上げる時は「Supply chain policy」の手順に従い、`pnpm install --frozen-lockfile` が通ること・
-`node scripts/find-young-deps.mjs` が 0 件であることを確認する (young 版が増えたら `minimumReleaseAgeExclude` に追記)。
+`node scripts/find-young-deps.mjs` の出力 (exact version 行) で `minimumReleaseAgeExclude` を全置換し、
+override 無しで install が通ることを確認する。
 
 ## 触らないもの
 
 - `pnpm-workspace.yaml` の supply chain ブロック (`allowBuilds` / `overrides` / `minimumReleaseAge*` /
-  `saveExact` / `engineStrict` / `verifyDepsBeforeRun` / `fund`)
-- `.github/workflows/ci.yml` / `.github/dependabot.yml` (合意済みの構成)
+  `saveExact` / `engineStrict` / `verifyDepsBeforeRun` / `fund`)。ただし `minimumReleaseAgeExclude` の
+  保守 (find-young-deps の出力で全置換) は通常運用。policy 値そのものの変更はユーザ依頼時のみ
+- `.github/workflows/ci.yml` / `.github/dependabot.yml` (合意済みの構成。変更はユーザ依頼時のみ。
+  cooldown と `minimumReleaseAge` は常に cooldown > minimumReleaseAge を保つ)
 - `migrations/` の既存ファイル (新規追加は `pnpm db:generate` 経由のみ)
 - `worker-configuration.d.ts` (自動生成、`pnpm cf-typegen` で更新)
 - `.dev.vars` / `.env` (シークレット、`.dev.vars.example` / `.env.example` を「どの変数が必要か」の

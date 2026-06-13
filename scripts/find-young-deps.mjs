@@ -46,11 +46,18 @@ for (const [name, versions] of installedVersions) {
   }
 }
 
-// package 名で uniq (複数 version が刺さっていれば 1 行にまとめる)
+// (name, version) で uniq し、そのまま pnpm-workspace.yaml の
+// minimumReleaseAgeExclude に貼れる exact version 行 (`- "name@version"`) を出力する。
+// 運用は「このブロックで minimumReleaseAgeExclude を全置換」(漏れ=install fail、余り=stale)。
 const uniqNames = [...new Set(young.map((p) => p.name))].sort();
 
 console.log(`\nFound ${young.length} version(s) violating, ${uniqNames.length} unique package(s):`);
+console.log(
+  "\n# --- paste below into pnpm-workspace.yaml `minimumReleaseAgeExclude:` (replace whole list) ---",
+);
 for (const name of uniqNames) {
-  const vs = young.filter((p) => p.name === name).map((p) => `${p.version}@${p.publishedAt}`);
-  console.log(`  - ${name}  # ${vs.join(", ")}`);
+  const versions = [...new Set(young.filter((p) => p.name === name).map((p) => p.version))].sort();
+  for (const v of versions) {
+    console.log(`  - "${name}@${v}"`);
+  }
 }

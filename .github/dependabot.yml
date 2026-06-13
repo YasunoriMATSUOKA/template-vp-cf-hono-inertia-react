@@ -8,10 +8,17 @@ updates:
       interval: daily
     open-pull-requests-limit: 5
 
-    # 7 日 cooldown: routine update を publish から 7 日経過するまで待たせる。
-    # security update は Dependabot の別系統で動くので cooldown 無視で即 PR 化される。
+    # 8 日 cooldown: routine version-update を publish から 8 日経過するまで待たせる。
+    # pnpm-workspace.yaml の minimumReleaseAge (7 日) + 1 日 buffer の意図的カップリング。
+    # cooldown は日単位・minimumReleaseAge は分単位なので、buffer で粒度差と clock skew を
+    # 吸収し「PR を即 merge しても install gate を超えた版 = CI green = Cloudflare deploy 可」を保証する。
+    # 注意: security update は cooldown を bypass する仕様 (version-update 専用) なので、
+    # 稀に 7 日未満の版を持つ PR が生成され得る。その PR は CI `audit` job の
+    # `pnpm install --frozen-lockfile` で fail (赤) し branch protection が merge をブロックするため
+    # Cloudflare には到達しない。対応は同 PR 内で該当 exact version を minimumReleaseAgeExclude に
+    # 追記して緑にする (README「young version をマージする時の運用」節)。
     cooldown:
-      default-days: 7
+      default-days: 8
 
     # patch/minor は 1 PR にまとめてレビュー負担を減らす。major は個別 PR。
     groups:
