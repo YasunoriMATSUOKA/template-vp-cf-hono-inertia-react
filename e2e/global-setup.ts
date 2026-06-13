@@ -22,7 +22,7 @@ export default async function globalSetup() {
   if (!mailosaurConfigured) {
     throw new Error(
       "globalSetup: MAILOSAUR_API_KEY / MAILOSAUR_SERVER_ID が未設定です。" +
-        " .dev.vars に Mailosaur 資格情報を設定してください (README の Mailosaur 節参照)。",
+        " .env に Mailosaur 資格情報を設定してください (README の Mailosaur 節参照)。",
     );
   }
 

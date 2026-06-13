@@ -65,7 +65,15 @@ export async function sendAuthEmail(env: Env, msg: AuthEmail): Promise<void> {
     return;
   }
 
-  // (3) フォールバック: 上記いずれの送信経路も使えない場合 (dev で relay 未設定、
-  // 本番で EMAIL_FROM 未設定など)。実送信せず actionable URL を console 出力する。
-  console.log(`[auth-email] to=${msg.to} subject=${msg.subject} url=${msg.url}`);
+  // (3) フォールバック: 上記いずれの送信経路も使えない場合。
+  // dev では確認 URL を console 出力して開発を回せるようにするが、本番でここに来るのは
+  // 設定不備 (EMAIL_FROM 未設定など) なので、トークン付き URL を Logpush に残さないよう
+  // redact し、error として顕在化させる。
+  if (import.meta.env.DEV) {
+    console.log(`[auth-email] to=${msg.to} subject=${msg.subject} url=${msg.url}`);
+  } else {
+    console.error(
+      `[auth-email] 送信経路が未設定のためメールを送信できませんでした (to=${msg.to} subject=${msg.subject})`,
+    );
+  }
 }

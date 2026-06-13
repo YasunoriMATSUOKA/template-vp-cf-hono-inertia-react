@@ -22,10 +22,12 @@ export default function Login() {
 
       <div className="divider my-6">または</div>
 
-      <div role="tablist" className="tabs tabs-bordered mb-4">
+      {/* ARIA tab の完全な要件 (tabpanel 紐付け等) は満たさないので role=tab は付けず、
+          トグルボタンとして aria-pressed で状態を表す。 */}
+      <div className="tabs tabs-bordered mb-4">
         <button
           type="button"
-          role="tab"
+          aria-pressed={mode === "signin"}
           className={`tab ${mode === "signin" ? "tab-active" : ""}`}
           onClick={() => setMode("signin")}
         >
@@ -33,7 +35,7 @@ export default function Login() {
         </button>
         <button
           type="button"
-          role="tab"
+          aria-pressed={mode === "signup"}
           className={`tab ${mode === "signup" ? "tab-active" : ""}`}
           onClick={() => setMode("signup")}
         >

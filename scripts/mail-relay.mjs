@@ -41,8 +41,11 @@ const server = createServer((req, res) => {
     });
     req.on("end", async () => {
       try {
-        const { from, to, subject, text, html } = JSON.parse(body);
-        await transport.sendMail({ from, to, subject, text, html });
+        // text のみ転送する。E2E はメール内リンクを Mailosaur の text 解析 (message.text.links)
+        // で取得するので html は不要。リクエスト由来の html を sink (sendMail) に流さないことで
+        // HTML インジェクションの taint を断つ (このリレーはテスト専用だが念のため)。
+        const { from, to, subject, text } = JSON.parse(body);
+        await transport.sendMail({ from, to, subject, text });
         console.log(`[mail-relay] forwarded to ${to} (subject: ${subject})`);
         res.writeHead(200).end("ok");
       } catch (err) {
@@ -55,4 +58,7 @@ const server = createServer((req, res) => {
   res.writeHead(404).end("not found");
 });
 
-server.listen(port, () => console.log(`[mail-relay] listening on http://localhost:${port}`));
+// loopback (127.0.0.1) のみに bind してローカル以外からアクセスできないようにする。
+server.listen(port, "127.0.0.1", () =>
+  console.log(`[mail-relay] listening on http://127.0.0.1:${port}`),
+);

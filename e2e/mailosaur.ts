@@ -1,6 +1,7 @@
 import MailosaurClient from "mailosaur";
 
-// Mailosaur 資格情報は playwright.config.ts が .dev.vars から process.env に流し込む。
+// Mailosaur 資格情報は playwright.config.ts が .env / .dev.vars を parse して
+// process.env に流し込む (実値は .env 側の MAILOSAUR_*)。
 const apiKey = process.env.MAILOSAUR_API_KEY ?? "";
 const serverId = process.env.MAILOSAUR_SERVER_ID ?? "";
 
@@ -19,11 +20,13 @@ export async function waitForEmail(sentTo: string, receivedAfter?: Date) {
   return client.messages.get(serverId, { sentTo }, { receivedAfter, timeout: 30_000 });
 }
 
-type WithLinks = { html?: { links?: { href?: string }[] } };
+type Links = { links?: { href?: string }[] };
+type WithLinks = { html?: Links; text?: Links };
 
 // メール本文中のリンクから、href に includes を含む最初のものを返す。
+// メールリレーは text のみ転送するので text.links を優先し、html があれば併せて見る。
 export function findLink(message: WithLinks, includes: string): string {
-  const links = message.html?.links ?? [];
+  const links = [...(message.text?.links ?? []), ...(message.html?.links ?? [])];
   const found = links.find((l) => (l.href ?? "").includes(includes));
   if (!found?.href) {
     throw new Error(`Mailosaur: href に "${includes}" を含むリンクが見つかりませんでした。`);

@@ -7,7 +7,7 @@ test("サインアップ → 確認メール → 確認完了 → /todos に入�
   const email = uniqueEmail("signup");
 
   await page.goto("/login");
-  await page.getByRole("tab", { name: "新規登録" }).click();
+  await page.getByRole("button", { name: "新規登録", exact: true }).click();
   await page.getByPlaceholder("表示名").fill("Signup E2E");
   await page.getByPlaceholder("メールアドレス").fill(email);
   await page.getByPlaceholder("パスワード (8 文字以上)").fill(PASSWORD);
@@ -32,14 +32,14 @@ test("未確認のままではログインできず、確認メール再送で�
 
   // サインアップ (確認メールは送られるが踏まない)
   await page.goto("/login");
-  await page.getByRole("tab", { name: "新規登録" }).click();
+  await page.getByRole("button", { name: "新規登録", exact: true }).click();
   await page.getByPlaceholder("メールアドレス").fill(email);
   await page.getByPlaceholder("パスワード (8 文字以上)").fill(PASSWORD);
   await page.getByRole("button", { name: "アカウント作成" }).click();
   await expect(page.getByText("確認メールを送信しました")).toBeVisible();
 
   // 未確認のままログインを試みる → 未確認警告 + 再送ボタン
-  await page.getByRole("tab", { name: "ログイン" }).click();
+  await page.getByRole("button", { name: "ログイン", exact: true }).click();
   await page.getByPlaceholder("メールアドレス").fill(email);
   await page.getByPlaceholder("パスワード").fill(PASSWORD);
   await page.getByRole("button", { name: "メールアドレスでログイン" }).click();
