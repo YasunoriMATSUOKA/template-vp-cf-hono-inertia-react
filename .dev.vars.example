@@ -9,3 +9,14 @@ BETTER_AUTH_SECRET=replace-me-with-random-32-bytes
 # 承認済みリダイレクト URI に http://localhost:5173/api/auth/callback/google を追加
 GOOGLE_CLIENT_ID=xxxxxxxxxxxx.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxx
+
+# 認証メール (確認 / リセット / メール変更) の送信元アドレス。
+# 本番は Cloudflare Email Routing で onboard 済みドメイン上のアドレスにする。
+# local dev では実送信しない (URL を console 出力) ため任意の値で可。
+EMAIL_FROM=no-reply@example.com
+
+# ローカル (dev / E2E) で認証メールを実送信するためのローカルリレー URL。
+# `pnpm dev` / `pnpm e2e` はこれを使って Worker → リレー → Mailosaur SMTP に送る。
+# 本番 (Cloudflare) では設定しない & email.ts の DEV ガードで relay 分岐は dead-code 化されるため、
+# この値があっても本番送信には一切影響しない (本番は send_email binding を使う)。
+MAIL_RELAY_URL=http://localhost:3001/send

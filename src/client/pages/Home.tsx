@@ -23,7 +23,7 @@ export default function Home({ auth }: PageProps<"Home">) {
       ) : (
         <p>
           <Link href="/login" className="link link-primary">
-            Google でログインして始める
+            ログインして始める
           </Link>
         </p>
       )}

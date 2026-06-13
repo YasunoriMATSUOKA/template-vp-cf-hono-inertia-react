@@ -8,6 +8,7 @@ import { rootView } from "./root-view";
 import authRoutes from "./features/auth/routes";
 import todosRoutes from "./features/todos/routes";
 import { listTodos } from "./features/todos/queries";
+import { hasCredentialAccount } from "./features/auth/queries";
 import type { Db } from "./db";
 import type { Auth, SessionUser } from "./features/auth/auth";
 
@@ -48,6 +49,20 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>()
   })
   .get("/privacy-policy", (c) => c.render("PrivacyPolicy", authProp(c)))
   .get("/terms-of-service", (c) => c.render("TermsOfService", authProp(c)))
+  // email/password 認証フロー用ページ。実際のトークン処理は Better Auth の
+  // /api/auth/* ハンドラが行い、これらは redirect 先 (リンク着地) の client ページ。
+  // - /verify-email: 確認メールのリンクが踏まれた後の着地 (callbackURL)。?error= も受ける
+  // - /reset-password: リセットリンク経由で ?token= を受け、新パスワードを送信する
+  .get("/verify-email", (c) => c.render("VerifyEmail", authProp(c)))
+  .get("/reset-password", (c) => c.render("ResetPassword", authProp(c)))
+  // メールアドレス変更などのアカウント設定。要ログイン。
+  // 資格情報 (email/password) アカウントを持つ場合のみメール/パスワード変更を出す
+  // (Google など social のみのアカウントは provider 側で管理されるため不可)。
+  .get("/settings", async (c) => {
+    if (!c.var.user) return c.redirect("/login");
+    const canManageCredentials = await hasCredentialAccount(c.var.db, c.var.user.id);
+    return c.render("Settings", { ...authProp(c), canManageCredentials });
+  })
   .onError((err, c) => {
     // スタックや DB エラー文言をクライアントに返さない。詳細は Cloudflare の
     // `observability.enabled` 経由で Logpush に流れる console.error のみで見る。

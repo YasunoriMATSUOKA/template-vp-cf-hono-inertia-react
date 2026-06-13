@@ -5,7 +5,8 @@
   "scripts": {
     "postinstall": "pnpm cf-typegen",
     "predev": "pnpm cf-typegen && pnpm db:migrate:local",
-    "dev": "vp dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:vite": "pnpm cf-typegen && pnpm db:migrate:local && vp dev",
     "prebuild": "pnpm cf-typegen",
     "build": "vp build",
     "cf:build": "pnpm db:migrate:remote && pnpm build && pnpm build",
@@ -31,7 +32,7 @@
     "secrets:pull": "node scripts/secrets-pull.mjs",
     "secrets:pull:local": "node scripts/secrets-pull.mjs local",
     "secrets:pull:prod": "node scripts/secrets-pull.mjs prod",
-    "secrets:pull:ci": "node scripts/secrets-pull.mjs local .dev.vars"
+    "secrets:pull:ci": "node scripts/secrets-pull.mjs local .dev.vars .env"
   },
   "dependencies": {
     "@hono/inertia": "0.4.0",
@@ -52,6 +53,7 @@
     "@storybook/react-vite": "10.4.2",
     "@tailwindcss/vite": "4.3.0",
     "@types/better-sqlite3": "7.6.13",
+    "@types/nodemailer": "8.0.0",
     "@types/react": "19.2.16",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
@@ -63,6 +65,8 @@
     "dependency-cruiser": "17.4.3",
     "drizzle-kit": "0.31.10",
     "knip": "6.15.0",
+    "mailosaur": "11.1.1",
+    "nodemailer": "8.0.10",
     "storybook": "10.4.2",
     "storybook-addon-vis": "4.2.3",
     "tailwindcss": "4.3.0",

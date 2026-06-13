@@ -41,11 +41,19 @@
       },
     },
   ],
-  // APP_URL は環境ごとに値が違うため `wrangler.jsonc` の `vars` には置かない:
-  //   - local / CI: `.dev.vars` (1Password から pull) で `env.APP_URL` を bind
-  //   - prod: Cloudflare dashboard で Worker Secret として登録 (deploy 越しに保持)
+  // Cloudflare Email Sending (認証メール: 確認 / リセット / メール変更)。
+  // 本番でのみ実送信。送信ドメインを Email Routing で onboard (MX/SPF/DKIM) し、
+  // 送信元 `env.EMAIL_FROM` をそのドメイン上のアドレスにすると任意宛先へ送れる。
+  // local dev では send_email は実送信せず、E2E では Mailosaur へのローカルリレーに差し替える
+  // (src/server/features/auth/email.ts 参照)。
+  "send_email": [{ "name": "SEND_EMAIL" }],
+  // APP_URL / EMAIL_FROM / MAIL_RELAY_URL は環境ごとに値が違うため `wrangler.jsonc` の
+  // `vars` には置かない:
+  //   - local / CI: `.dev.vars` (1Password から pull) で bind
+  //   - prod: Cloudflare dashboard で Worker Secret / var として登録 (deploy 越しに保持)
   // `wrangler types` は `.dev.vars` も読んで `Env` interface に型を生やすので、
-  // TypeScript からは `env.APP_URL: string` として参照できる。
+  // TypeScript からは `env.APP_URL: string` 等として参照できる。
+  // MAIL_RELAY_URL は通常空 (= 本番/素のローカル dev では relay 無効)、E2E でのみ設定する。
   "observability": {
     "enabled": true,
   },

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { SignOutButton } from "./SignOutButton";
+import { ForgotPasswordForm } from "./ForgotPasswordForm";
 
-const meta: Meta<typeof SignOutButton> = { component: SignOutButton };
+const meta: Meta<typeof ForgotPasswordForm> = { component: ForgotPasswordForm };
 export default meta;
 
 type Story = StoryObj<typeof meta>;

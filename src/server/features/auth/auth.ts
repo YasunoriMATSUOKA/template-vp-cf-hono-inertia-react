@@ -1,4 +1,11 @@
 import { betterAuth } from "better-auth";
+import { sendAuthEmail } from "./email";
+
+// 実送信できる環境でのみメール確認を必須化する。
+//   - 本番ビルド (!import.meta.env.DEV): Cloudflare send_email binding で送信
+//   - E2E (env.MAIL_RELAY_URL あり): ローカルリレー → Mailosaur SMTP で送信
+// 素のローカル dev は実送信しない (console 出力) ため確認不要にして開発摩擦を避ける。
+const emailEnforced = (env: Env) => !import.meta.env.DEV || Boolean(env.MAIL_RELAY_URL);
 
 // 必ず「1リクエストにつき1インスタンス」だけ生成すること。
 // グローバルスコープで evaluate すると c.env が無いし、Cloudflare の isolate
@@ -11,10 +18,51 @@ export const createAuth = (env: Env) =>
     // origin-check middleware が許容する origin の明示。Better Auth は baseURL を暗黙に
     // trusted に含むが、空 fallback で open redirect の足場になるのを避けるため明示する。
     trustedOrigins: [env.APP_URL],
-    // dev mode (vite dev) でのみ email/password を有効化 (E2E テスト用)。
-    // @cloudflare/vite-plugin の build 時に import.meta.env.DEV が定数置換されるので、
-    // 本番 build (wrangler deploy) では false 固定でバンドルされる。
-    emailAndPassword: { enabled: import.meta.env.DEV },
+    // email/password を常時有効化。確認必須は実送信できる環境 (本番 / E2E) のみ。
+    emailAndPassword: {
+      enabled: true,
+      requireEmailVerification: emailEnforced(env),
+      sendResetPassword: async ({ user, url }) => {
+        await sendAuthEmail(env, {
+          to: user.email,
+          subject: "パスワードの再設定",
+          heading: "パスワードを再設定してください",
+          actionLabel: "パスワードを再設定",
+          url,
+        });
+      },
+    },
+    emailVerification: {
+      // サインアップ時に確認メールを送るのは確認必須の環境のみ (素の dev は送らない)。
+      sendOnSignUp: emailEnforced(env),
+      // 確認リンクを踏んだら自動でログイン状態にする。
+      autoSignInAfterVerification: true,
+      sendVerificationEmail: async ({ user, url }) => {
+        await sendAuthEmail(env, {
+          to: user.email,
+          subject: "メールアドレスの確認",
+          heading: "メールアドレスを確認してください",
+          actionLabel: "メールアドレスを確認",
+          url,
+        });
+      },
+    },
+    // ログイン後のメールアドレス変更。確認は現在(旧)アドレスへ送られ、
+    // 承認後に新アドレスへ verification (上記 sendVerificationEmail) が飛ぶ。
+    user: {
+      changeEmail: {
+        enabled: true,
+        sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
+          await sendAuthEmail(env, {
+            to: user.email,
+            subject: "メールアドレス変更の確認",
+            heading: `メールアドレスを ${newEmail} に変更しますか？`,
+            actionLabel: "変更を承認",
+            url,
+          });
+        },
+      },
+    },
     socialProviders: {
       google: {
         clientId: env.GOOGLE_CLIENT_ID,

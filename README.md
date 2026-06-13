@@ -78,8 +78,9 @@ template ファイルとスクリプトは変更不要。`secrets:pull:<env>` �
 ### CI (GitHub Actions) からの pull
 
 CI も **`template-vp-cf-hono-inertia-react-local` vault を流用**する (CI 専用 vault は
-作らない)。e2e で必要なのは `.dev.vars` Item の 3 field だけなので、Service Account を
-local vault に read-only でスコープして発行する。
+作らない)。e2e では Worker ランタイム秘密 (`.dev.vars` Item) に加えて Mailosaur 資格情報
+(`.env` Item の `MAILOSAUR_*`) も要るため、`secrets:pull:ci` は `.dev.vars` と `.env` の
+両方を pull する。Service Account は local vault に read-only でスコープして発行する。
 
 **初期 setup (1 回だけ)**:
 
@@ -176,6 +177,79 @@ CHROMATIC_PROJECT_TOKEN=<storybook-token> pnpm chromatic:storybook
 pnpm e2e
 CHROMATIC_PROJECT_TOKEN=<playwright-token> pnpm chromatic:playwright
 ```
+
+## Email + Password 認証とメール送信 (確認 / リセット / メール変更)
+
+Google OAuth に加えて email + password 認証を提供する。認証メール (メールアドレス確認 /
+パスワードリセット / メールアドレス変更確認) の送信 transport は環境で切り替わる
+(`src/server/features/auth/email.ts`):
+
+| 環境                                         | transport                                       | メール確認 (`requireEmailVerification`) |
+| -------------------------------------------- | ----------------------------------------------- | --------------------------------------- |
+| 本番 (`wrangler deploy`)                     | Cloudflare Email Sending (`send_email` binding) | 必須                                    |
+| ローカル dev / E2E (`pnpm dev` / `pnpm e2e`) | ローカル Node リレー → Mailosaur SMTP           | 必須                                    |
+
+**方針: ローカルは常に実メール送信 (Mailosaur)**。`pnpm dev` は `scripts/dev.mjs` 経由で
+メールリレー + Worker を同時起動し、認証メールが実際に Mailosaur へ届く (= 本番と同じ
+「確認必須」挙動でローカル検証できる)。素の console 出力モードは廃止 (フォールバックとしては残存)。
+
+切替シグナルは `env.MAIL_RELAY_URL` (ローカルでは `.dev.vars` に常設) と本番ビルド判定。
+**本番保護**: relay 分岐は `if (import.meta.env.DEV && env.MAIL_RELAY_URL)` でガードしてあり、
+本番ビルド (`import.meta.env.DEV === false`) では **この分岐ごと dead-code 除去**される。
+→ 本番 Worker のバンドルにリレー送信のコードは含まれず、本番が誤ってリレー送信になることは
+構造的に起こり得ない (本番は `send_email` binding のみ)。
+
+DB マイグレーションは不要 (`user.emailVerified` / `verification` / `account.password` は既存)。
+
+### 本番でメールを送る (Cloudflare Email Sending) — 手作業
+
+1. Cloudflare dashboard → **Email → Email Routing** で送信ドメインを onboard
+   (DNS に MX / SPF(TXT) / DKIM を設定し検証)。onboard 後は任意の宛先へ送信できる。
+2. `wrangler.jsonc` の `send_email` binding (`SEND_EMAIL`) がそのドメインを使う。
+3. 送信元 `EMAIL_FROM` を**そのドメイン上のアドレス**にし、prod の Worker var/secret に登録する。
+4. **onboard 前に `send_email` binding 付きで deploy しない** (ドメイン未検証だと `send()` が失敗する)。
+
+### ローカル dev / E2E でのメール経路
+
+`MAIL_RELAY_URL` は `.dev.vars` に常設 (`http://localhost:3001/send`)。`pnpm dev` /
+`pnpm e2e` はともに **メールリレー (`scripts/mail-relay.mjs`, port 3001) + Worker** を
+`scripts/dev.mjs` で同時起動する (Playwright も `pnpm dev` を webServer として使うだけ)。
+Worker が送る認証メールはリレー → **Mailosaur SMTP** に転送され (送信ドメイン不要)、
+E2E では Playwright が Mailosaur API で受信して確認/リセット/変更リンクを踏む。
+
+対象フロー: `e2e/auth-signup-verify.spec.ts` / `auth-password-reset.spec.ts` /
+`auth-change-email.spec.ts` / `auth-change-password.spec.ts`、および `global-setup.ts`
+(todos 用の検証済みユーザー生成)。
+
+**秘密の置き場所**: Mailosaur 資格情報は **Worker ランタイムには渡らない**テスト基盤専用なので、
+`.dev.vars` (Wrangler runtime) ではなく **`.env` (Node ツール用) 側**に置く (Playwright と
+リレーが `.env` を parse して参照)。これにより Worker の `Env` 型が汚れず、Mailosaur を本番
+Cloudflare に登録する必要も無い。`EMAIL_FROM` だけは本番の送信元として `.dev.vars` (= 本番 Worker
+var) 側に置く。
+
+**手作業 (1 回だけ)**: [Mailosaur](https://mailosaur.com) でアカウント + Server を作成し、
+1Password の **`.env` Item** に以下を登録する (`.env.1password.tpl` 参照):
+
+- `MAILOSAUR_API_KEY` / `MAILOSAUR_SERVER_ID`
+- `MAILOSAUR_SMTP_HOST` / `MAILOSAUR_SMTP_PORT` / `MAILOSAUR_SMTP_USER` / `MAILOSAUR_SMTP_PASS`
+
+> `op inject` は参照 field が 1 つでも欠けると全体が fail する。**E2E を実行しない環境でも**
+> これら 6 field を 1Password の `.env` Item に作成しておくこと (値は空文字で可)。空なら
+> `secrets:pull` は通り、`pnpm e2e` 実行時に `global-setup` が「未設定」を明示して止まる。
+
+登録後 `pnpm secrets:pull:local` で `.env` / `.dev.vars` を再生成し、`pnpm dev` または
+`pnpm e2e` を実行する。CI は既存 e2e task の 1Password 注入 (`secrets:pull:ci` =
+`.dev.vars` + `.env` を pull) でこれらを取得する (workflow の step 構成は不変)。
+
+### ローカルで実メールを手で確認する
+
+`pnpm dev` を起動した状態でブラウザからサインアップ等を行うと、認証メールが Mailosaur に
+届く (dashboard で本文・リンクを確認)。メール内リンクは `APP_URL` (= `http://localhost:5173/...`)
+なのでローカルのブラウザで開けば確認フローが完了する。終了は **Ctrl+C** で、リレー・Worker・
+workerd まで含めてまとめて停止する (`scripts/dev.mjs` がプロセスグループごと kill する)。
+
+> `MAIL_RELAY_URL` が立っているので `requireEmailVerification` が有効。サインアップ後はメール
+> 確認が必須で、確認済みアカウントでのみメール変更が「旧 → 新」の 2 段階フローになる。
 
 ## Runtime hardening (Hono Worker 側の defense in depth)
 
