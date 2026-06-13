@@ -438,11 +438,16 @@ allowlist を canonical source of truth にする方針)。
 対応は PR の中で:
 
 ```bash
-node scripts/find-young-deps.mjs > /tmp/young.txt   # 現 lockfile の若い version を列挙
-# /tmp/young.txt の出力を pnpm-workspace.yaml の minimumReleaseAgeExclude に追記
-pnpm install --frozen-lockfile                       # override 無しで install が通れば OK
+node scripts/find-young-deps.mjs    # 現 lockfile の若い version を exact version 行で列挙
+# 出力された `- "name@version"` ブロックで pnpm-workspace.yaml の
+# minimumReleaseAgeExclude を「全置換」する (追記ではなく置換 = age を過ぎた版が自然に消える)
+pnpm install --frozen-lockfile      # override 無しで install が通れば OK
 git add pnpm-workspace.yaml
 ```
+
+`minimumReleaseAgeExclude` は **exact version (`name@version`)** で列挙する方式。bare name や
+glob でも効くが、それだと当該 package の全 version が age gate 対象外になり security が緩む。
+exact version なら列挙した特定版のみ免除で、将来版は 7 日 gate を維持する。
 
 ローカルで急ぎ install を通したいときの一時 escape hatch:
 
@@ -452,5 +457,16 @@ pnpm install --frozen-lockfile --config.minimum-release-age=0
 
 ただし `verifyDepsBeforeRun: error` の下では state file が drift して
 後続 `pnpm <cmd>` が fail するので、本筋は **PR で `minimumReleaseAgeExclude`
-を更新する**こと。age を過ぎたパッケージは半年に 1 度くらい
-`find-young-deps.mjs` の diff を取って整理する。
+を全置換更新する**こと。
+
+### routine PR と security PR の違い
+
+- **routine version-update PR** (Dependabot): `.github/dependabot.yml` の cooldown を
+  **8 日** (= minimumReleaseAge 7 日 + 1 日 buffer) にしてあるため、常に install gate を
+  超えた版を対象に開かれる。**即 merge しても CI green / Cloudflare deploy が通る**ので、
+  通常このリストへの追記は不要。
+- **security PR** (Dependabot security update): cooldown を bypass する仕様なので、稀に
+  7 日未満の版を持つ PR が来る。その PR は CI の `pnpm install --frozen-lockfile` で fail し
+  branch protection が merge をブロックする (= Cloudflare には到達しない) ので、上記手順で
+  `find-young-deps.mjs` を再生成してリストを全置換し (該当 exact version が含まれる)、
+  緑にしてから merge する。

@@ -36,81 +36,53 @@ minimumReleaseAge: 10080
 # Cloudflare Workers Builds の dashboard には install command 指定欄が無く、
 # `--config.minimum-release-age=0` を install に渡す経路が無いので、policy
 # 例外を明示的に列挙する以外に deploy 通す方法が無い。
-# 生成: `node scripts/find-young-deps.mjs` の出力を貼る。
-# 運用: lockfile 更新 (Dependabot security PR 等) で新規 young version が
-# 入るたび、同 PR でこのリストも更新する。age を過ぎたものは半年に 1 度
-# くらいで整理 (再 `find-young-deps.mjs` で diff を取る)。
+#
+# 方式: **exact version 固定** (`name@version`)。bare name や glob (`@scope/*`) でも
+# 効くが、それだと当該 package の全 version が age gate 対象外になり security が緩む。
+# exact version なら「列挙した特定版のみ免除・将来版は 7 日 gate 維持」となり、
+# minimumReleaseAge の効果 (= npm audit レベル) を一切下げない。
+#
+# 生成: `node scripts/find-young-deps.mjs` の出力 (`- "name@version"` 形式) で
+#       **このリストを全置換**する。漏れがあれば install が fail、余りは stale。
+# 運用: lockfile 更新 (Dependabot security PR / 手動 override 等) で新規 young version が
+#       入るたび、同 PR で再生成・全置換する。age を過ぎた版は次の lockfile 更新時に
+#       リストから自然に消える (再生成すれば出力されないため)。
+#
+# 現状の中身は esbuild override (>=0.28.1, GHSA-gv7w-rqvm-qjhr / GHSA-g7r4-m6w7-qqqr の
+# patch) が強制した 0.28.1 (platform 別 optionalDeps 含む) と、頻繁に publish される
+# browserslist 系データ (caniuse-lite 等)。esbuild 0.28.1 は age 超過後の再生成で消える。
 minimumReleaseAgeExclude:
-  # esbuild 0.28.1 (GHSA-gv7w-rqvm-qjhr / GHSA-g7r4-m6w7-qqqr の patch) を override で強制
-  # up したが、0.28.1 が公開 7 日未満のため grandfather に列挙する (platform 別 optionalDeps 含む)。
-  - "@esbuild/aix-ppc64"
-  - "@esbuild/android-arm"
-  - "@esbuild/android-arm64"
-  - "@esbuild/android-x64"
-  - "@esbuild/darwin-arm64"
-  - "@esbuild/darwin-x64"
-  - "@esbuild/freebsd-arm64"
-  - "@esbuild/freebsd-x64"
-  - "@esbuild/linux-arm"
-  - "@esbuild/linux-arm64"
-  - "@esbuild/linux-ia32"
-  - "@esbuild/linux-loong64"
-  - "@esbuild/linux-mips64el"
-  - "@esbuild/linux-ppc64"
-  - "@esbuild/linux-riscv64"
-  - "@esbuild/linux-s390x"
-  - "@esbuild/linux-x64"
-  - "@esbuild/netbsd-arm64"
-  - "@esbuild/netbsd-x64"
-  - "@esbuild/openbsd-arm64"
-  - "@esbuild/openbsd-x64"
-  - "@esbuild/openharmony-arm64"
-  - "@esbuild/sunos-x64"
-  - "@esbuild/win32-arm64"
-  - "@esbuild/win32-ia32"
-  - "@esbuild/win32-x64"
-  - esbuild
-  - "@cloudflare/vite-plugin"
-  - "@cloudflare/workerd-darwin-64"
-  - "@cloudflare/workerd-darwin-arm64"
-  - "@cloudflare/workerd-linux-64"
-  - "@cloudflare/workerd-linux-arm64"
-  - "@cloudflare/workerd-windows-64"
-  - "@types/node"
-  - "@unrs/resolver-binding-android-arm-eabi"
-  - "@unrs/resolver-binding-android-arm64"
-  - "@unrs/resolver-binding-darwin-arm64"
-  - "@unrs/resolver-binding-darwin-x64"
-  - "@unrs/resolver-binding-freebsd-x64"
-  - "@unrs/resolver-binding-linux-arm-gnueabihf"
-  - "@unrs/resolver-binding-linux-arm-musleabihf"
-  - "@unrs/resolver-binding-linux-arm64-gnu"
-  - "@unrs/resolver-binding-linux-arm64-musl"
-  - "@unrs/resolver-binding-linux-ppc64-gnu"
-  - "@unrs/resolver-binding-linux-riscv64-gnu"
-  - "@unrs/resolver-binding-linux-riscv64-musl"
-  - "@unrs/resolver-binding-linux-s390x-gnu"
-  - "@unrs/resolver-binding-linux-x64-gnu"
-  - "@unrs/resolver-binding-linux-x64-musl"
-  - "@unrs/resolver-binding-openharmony-arm64"
-  - "@unrs/resolver-binding-wasm32-wasi"
-  - "@unrs/resolver-binding-win32-arm64-msvc"
-  - "@unrs/resolver-binding-win32-ia32-msvc"
-  - "@unrs/resolver-binding-win32-x64-msvc"
-  - "@vitejs/plugin-react"
-  - baseline-browser-mapping
-  - caniuse-lite
-  - daisyui
-  - electron-to-chromium
-  - enhanced-resolve
-  - hono
-  - lru-cache
-  - miniflare
-  - tsx
-  - unrs-resolver
-  - vite
-  - workerd
-  - wrangler
+  - "@esbuild/aix-ppc64@0.28.1"
+  - "@esbuild/android-arm@0.28.1"
+  - "@esbuild/android-arm64@0.28.1"
+  - "@esbuild/android-x64@0.28.1"
+  - "@esbuild/darwin-arm64@0.28.1"
+  - "@esbuild/darwin-x64@0.28.1"
+  - "@esbuild/freebsd-arm64@0.28.1"
+  - "@esbuild/freebsd-x64@0.28.1"
+  - "@esbuild/linux-arm@0.28.1"
+  - "@esbuild/linux-arm64@0.28.1"
+  - "@esbuild/linux-ia32@0.28.1"
+  - "@esbuild/linux-loong64@0.28.1"
+  - "@esbuild/linux-mips64el@0.28.1"
+  - "@esbuild/linux-ppc64@0.28.1"
+  - "@esbuild/linux-riscv64@0.28.1"
+  - "@esbuild/linux-s390x@0.28.1"
+  - "@esbuild/linux-x64@0.28.1"
+  - "@esbuild/netbsd-arm64@0.28.1"
+  - "@esbuild/netbsd-x64@0.28.1"
+  - "@esbuild/openbsd-arm64@0.28.1"
+  - "@esbuild/openbsd-x64@0.28.1"
+  - "@esbuild/openharmony-arm64@0.28.1"
+  - "@esbuild/sunos-x64@0.28.1"
+  - "@esbuild/win32-arm64@0.28.1"
+  - "@esbuild/win32-ia32@0.28.1"
+  - "@esbuild/win32-x64@0.28.1"
+  - "baseline-browser-mapping@2.10.36"
+  - "caniuse-lite@1.0.30001799"
+  - "electron-to-chromium@1.5.372"
+  - "enhanced-resolve@5.24.0"
+  - "esbuild@0.28.1"
 
 # 新規 install/add で ^/~ を付けず exact 版で書く。
 # 既存の ^ は scripts/pin-deps.mjs で別途剥がす。
