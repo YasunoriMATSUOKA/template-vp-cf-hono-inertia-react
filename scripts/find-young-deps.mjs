@@ -23,7 +23,7 @@ for (const key of Object.keys(packages)) {
   installedVersions.get(name).add(version);
 }
 
-console.log(`Inspecting ${installedVersions.size} unique packages from lockfile...`);
+console.log(`# Inspecting ${installedVersions.size} unique packages from lockfile...`);
 
 const young = [];
 let i = 0;
@@ -51,9 +51,11 @@ for (const [name, versions] of installedVersions) {
 // 運用は「このブロックで minimumReleaseAgeExclude を全置換」(漏れ=install fail、余り=stale)。
 const uniqNames = [...new Set(young.map((p) => p.name))].sort();
 
-console.log(`\nFound ${young.length} version(s) violating, ${uniqNames.length} unique package(s):`);
 console.log(
-  "\n# --- paste below into pnpm-workspace.yaml `minimumReleaseAgeExclude:` (replace whole list) ---",
+  `\n# Found ${young.length} version(s) violating, ${uniqNames.length} unique package(s):`,
+);
+console.log(
+  "# --- paste below into pnpm-workspace.yaml `minimumReleaseAgeExclude:` (replace whole list) ---",
 );
 for (const name of uniqNames) {
   const versions = [...new Set(young.filter((p) => p.name === name).map((p) => p.version))].sort();

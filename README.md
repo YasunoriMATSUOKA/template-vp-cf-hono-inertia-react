@@ -468,4 +468,5 @@ pnpm install --frozen-lockfile --config.minimum-release-age=0
 - **security PR** (Dependabot security update): cooldown を bypass する仕様なので、稀に
   7 日未満の版を持つ PR が来る。その PR は CI の `pnpm install --frozen-lockfile` で fail し
   branch protection が merge をブロックする (= Cloudflare には到達しない) ので、上記手順で
-  該当 exact version を追記して緑にしてから merge する。
+  `find-young-deps.mjs` を再生成してリストを全置換し (該当 exact version が含まれる)、
+  緑にしてから merge する。

@@ -186,9 +186,9 @@ artifact upload 等で secret がリークしないようにする。GitHub-host
 
 security update は cooldown を **bypass** する仕様 (version-update 専用)。そのため稀に 7 日未満の版を持つ
 PR が生成され得るが、その PR は CI `audit` job の `pnpm install --frozen-lockfile` で fail (赤) し
-branch protection が merge をブロックするため **Cloudflare には到達しない**。対応は同 PR 内で該当
-exact version を `minimumReleaseAgeExclude` に追記して緑にする (`README.md` の同名節を参照)。
-これ以上の自動化は `minimumReleaseAge` を下げない限り不可能。
+branch protection が merge をブロックするため **Cloudflare には到達しない**。対応は同 PR 内で
+`find-young-deps.mjs` を再生成して `minimumReleaseAgeExclude` を全置換し (該当 exact version が含まれる)
+緑にする (`README.md` の同名節を参照)。これ以上の自動化は `minimumReleaseAge` を下げない限り不可能。
 
 ## Testing layers
 
