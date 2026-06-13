@@ -24,6 +24,10 @@ if (!process.env.MAILOSAUR_API_KEY) {
   );
 }
 
+// 子は detached にしない (= 同じプロセスグループに留める)。こうすると人間の Ctrl+C で
+// 端末がフォアグラウンドグループ全体 (この orchestrator + リレー + vp dev + workerd) に
+// SIGINT を送るので、全部まとめて止まる。detached にすると CI 等で親ツリーから外れて
+// 生き残り、stdio を握ったまま親が終了できずハングするので避ける。
 const children = [];
 let exiting = false;
 function shutdown(code) {
@@ -31,9 +35,7 @@ function shutdown(code) {
   exiting = true;
   for (const child of children) {
     try {
-      // detached で各子を独立グループにしているので、グループごと kill して
-      // 孫プロセス (vp dev が起動する workerd 等) も確実に止める。
-      process.kill(-child.pid, "SIGTERM");
+      child.kill("SIGTERM");
     } catch {
       // already exited
     }
@@ -42,7 +44,7 @@ function shutdown(code) {
 }
 
 function run(cmd, args) {
-  const child = spawn(cmd, args, { stdio: "inherit", env: process.env, detached: true });
+  const child = spawn(cmd, args, { stdio: "inherit", env: process.env });
   children.push(child);
   child.on("exit", (code) => shutdown(code ?? 0));
 }

@@ -21,15 +21,24 @@ for (const file of [".env", ".dev.vars"]) {
 export default defineConfig({
   testDir: "./e2e",
   globalSetup: "./e2e/global-setup.ts",
-  // `pnpm dev` は scripts/dev.mjs (メールリレー + vp dev を同時起動) なので、
-  // E2E でもこれ 1 つで「Worker + Mailosaur リレー」が揃う。MAIL_RELAY_URL は
-  // .dev.vars に常設済みなので事前準備 (toggle) は不要。
-  webServer: {
-    command: "pnpm dev",
-    url: "http://localhost:5173",
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  // E2E では orchestrator (scripts/dev.mjs) を使わず、Playwright にリレーと素の dev を
+  // 別 webServer として管理させる (orchestrator の子プロセスを Playwright が teardown で
+  // 殺し切れず、CI でプロセスが終了せずハングしたため)。MAIL_RELAY_URL は .dev.vars に
+  // 常設済みなので、この 2 つが上がれば Worker → リレー → Mailosaur の経路が揃う。
+  webServer: [
+    {
+      command: "node scripts/mail-relay.mjs",
+      url: "http://localhost:3001/health",
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+    },
+    {
+      command: "pnpm dev:vite",
+      url: "http://localhost:5173",
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+  ],
   // HTML レポート + 機械可読 JSON + console list を出力
   reporter: [
     ["html", { open: "never", outputFolder: "playwright-report" }],

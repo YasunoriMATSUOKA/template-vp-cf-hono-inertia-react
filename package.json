@@ -6,6 +6,7 @@
     "postinstall": "pnpm cf-typegen",
     "predev": "pnpm cf-typegen && pnpm db:migrate:local",
     "dev": "node scripts/dev.mjs",
+    "dev:vite": "pnpm cf-typegen && pnpm db:migrate:local && vp dev",
     "prebuild": "pnpm cf-typegen",
     "build": "vp build",
     "cf:build": "pnpm db:migrate:remote && pnpm build && pnpm build",
