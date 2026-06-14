@@ -9,10 +9,16 @@ export const mailosaurConfigured = Boolean(apiKey && serverId);
 
 const client = new MailosaurClient(apiKey);
 
-// `{prefix}-{unique}@{serverId}.mailosaur.net` 形式の使い捨てアドレスを生成する。
+// この run 固有の ID (playwright.config.ts が全ワーカー共通で process.env に設定する)。
+// 生成アドレスに埋め込むことで、global-teardown が「自分の run が作ったユーザー」だけを
+// 削除できる (= 同時並行 run の使用中ユーザーを巻き込まない)。ハイフンを含まない base36 なので
+// teardown 側の `LIKE '%-{runId}-%'` 区切りが一意に効く。
+const runId = process.env.E2E_RUN_ID ?? "norun";
+
+// `{prefix}-{runId}-{unique}@{serverId}.mailosaur.net` 形式の使い捨てアドレスを生成する。
 export function uniqueEmail(prefix: string): string {
   const unique = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
-  return `${prefix}-${unique}@${serverId}.mailosaur.net`;
+  return `${prefix}-${runId}-${unique}@${serverId}.mailosaur.net`;
 }
 
 // 指定アドレス宛の最新メールを待って取得する。receivedAfter で過去メールを除外できる。
