@@ -7,7 +7,7 @@ type Props = {
 };
 
 // ヘッダ右上のアカウントメニュー。アバターをクリックすると
-// 設定 / ログアウト などのメニューが開く (将来のページ追加もここに足す)。
+// ホーム / Todo一覧 / 設定 / ログアウト などのメニューが開く (将来のページ追加もここに足す)。
 // 開閉は state で明示制御する (CSS focus 依存だと headless テストで不安定なため)。
 export function UserBadge({ user }: Props) {
   const [open, setOpen] = useState(false);
@@ -52,6 +52,16 @@ export function UserBadge({ user }: Props) {
       {open && (
         <ul className="menu bg-base-100 rounded-box absolute right-0 z-10 mt-2 w-52 p-2 shadow">
           <li className="menu-title border-base-300 mb-1 truncate border-b pb-2">{label}</li>
+          <li>
+            <Link href="/" onClick={() => setOpen(false)}>
+              ホーム
+            </Link>
+          </li>
+          <li>
+            <Link href="/todos" onClick={() => setOpen(false)}>
+              Todo一覧
+            </Link>
+          </li>
           <li>
             <Link href="/settings" onClick={() => setOpen(false)}>
               設定

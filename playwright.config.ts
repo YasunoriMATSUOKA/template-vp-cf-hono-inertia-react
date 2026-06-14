@@ -78,7 +78,9 @@ export default defineConfig({
     {
       name: "chromium-authenticated",
       use: { browserName: "chromium", storageState: STORAGE_STATE },
-      testMatch: /todos\.spec\.ts/,
+      // ファイル名をパス区切り (/) と末尾 ($) でアンカーし、auth-todos.spec.ts 等の
+      // 部分一致による誤マッチを防ぐ。
+      testMatch: /\/(todos|avatar-menu)\.spec\.ts$/,
     },
   ],
 });
