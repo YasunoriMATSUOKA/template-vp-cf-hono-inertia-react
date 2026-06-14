@@ -12,7 +12,8 @@ const STORAGE_STATE = path.join(__dirname, "e2e/.auth/storage-state.json");
 for (const file of [".env", ".dev.vars"]) {
   const p = path.join(__dirname, file);
   if (!fs.existsSync(p)) continue;
-  for (const line of fs.readFileSync(p, "utf8").split("\n")) {
+  // CRLF (\r\n) でも値末尾に \r を残さないよう \r?\n で分割する。
+  for (const line of fs.readFileSync(p, "utf8").split(/\r?\n/)) {
     const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
     if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2];
   }

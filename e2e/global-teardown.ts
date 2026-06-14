@@ -13,7 +13,8 @@ function loadEnvFallback(): void {
   for (const file of [".env", ".dev.vars"]) {
     const p = path.join(__dirname, "..", file);
     if (!fs.existsSync(p)) continue;
-    for (const line of fs.readFileSync(p, "utf8").split("\n")) {
+    // CRLF (\r\n) でも値末尾に \r を残さないよう \r?\n で分割する。
+    for (const line of fs.readFileSync(p, "utf8").split(/\r?\n/)) {
       const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
       if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2];
     }
@@ -29,8 +30,10 @@ const SAFE = /^[A-Za-z0-9-]+$/;
 //   - serverId 一致 → 別 mailosaur サーバー / 実ユーザー (別ドメイン) を巻き込まない
 export default async function globalTeardown(): Promise<void> {
   loadEnvFallback();
-  const serverId = process.env.MAILOSAUR_SERVER_ID ?? "";
-  const runId = process.env.E2E_RUN_ID ?? "";
+  // process.env 側が CRLF 由来の \r 等を含む場合に備え、念のため trim してから検証する
+  // (config がファイルを LF 以外で parse して値を流し込んだケースの保険)。
+  const serverId = (process.env.MAILOSAUR_SERVER_ID ?? "").trim();
+  const runId = (process.env.E2E_RUN_ID ?? "").trim();
 
   // fail-safe: どちらか欠けたら何もしない (広域削除へフォールバックしない)。
   if (!serverId || !runId) {
@@ -79,7 +82,11 @@ export default async function globalTeardown(): Promise<void> {
       );
       return;
     }
-    console.warn(`[e2e teardown] cleanup attempt ${attempt}/${MAX} failed (status=${res.status})`);
+    // status=null は ENOENT (pnpm 不在) やシグナル kill 等。原因追跡のため signal / error も併記する。
+    console.warn(
+      `[e2e teardown] cleanup attempt ${attempt}/${MAX} failed ` +
+        `(status=${res.status}, signal=${res.signal ?? "none"}, error=${res.error?.message ?? "none"})`,
+    );
     if (attempt < MAX) await sleep(300 * attempt);
   }
   console.warn(
