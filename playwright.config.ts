@@ -78,7 +78,7 @@ export default defineConfig({
     {
       name: "chromium-authenticated",
       use: { browserName: "chromium", storageState: STORAGE_STATE },
-      testMatch: /todos\.spec\.ts/,
+      testMatch: /(todos|avatar-menu)\.spec\.ts/,
     },
   ],
 });

@@ -29,12 +29,14 @@ export const WithImage: Story = {
   },
 };
 
-// アバターをクリックするとメニュー (設定 / ログアウト) が開く
+// アバターをクリックするとメニュー (ホーム / Todo一覧 / 設定 / ログアウト) が開く
 export const OpenMenu: Story = {
   args: { user: { name: "松岡 康紀", email: "yasunori@example.com" } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "アカウントメニュー" }));
+    await expect(canvas.getByRole("link", { name: "ホーム" })).toBeVisible();
+    await expect(canvas.getByRole("link", { name: "Todo一覧" })).toBeVisible();
     await expect(canvas.getByRole("link", { name: "設定" })).toBeVisible();
     await expect(canvas.getByRole("button", { name: "ログアウト" })).toBeVisible();
   },
