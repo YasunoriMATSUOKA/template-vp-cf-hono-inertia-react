@@ -1,5 +1,6 @@
 {
   "$schema": "./node_modules/knip/schema.json",
   "entry": ["src/client/main.tsx", "scripts/*.mjs"],
-  "ignoreUnresolved": ["~/client/pages.gen"]
+  "ignoreUnresolved": ["~/client/pages.gen"],
+  "ignoreBinaries": ["op"]
 }
