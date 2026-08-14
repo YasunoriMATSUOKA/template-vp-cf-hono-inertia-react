@@ -29,6 +29,13 @@ process.env.E2E_RUN_ID ??= `run${Date.now().toString(36)}${Math.floor(Math.rando
 
 export default defineConfig({
   testDir: "./e2e",
+  // 並列度を固定する。全テストが 1 つの dev server と 1 つのローカル D1 (sqlite) を
+  // 共有するため、任意の並列度に耐える設計ではない。既定値はマシンのコア数の半分なので、
+  // 12 コア機では 6 workers になり、Inertia の POST → 303 → reload が 5 秒の expect
+  // timeout に間に合わず auth / todos 系が落ちる (「マシンによって落ちる」状態になる)。
+  // 2 は GitHub Actions runner (4 コア → 既定 2) と同じ値で、CI とローカルの挙動が揃う。
+  // 上げると同じ競合が再発するので、上げる前に D1 をテストごとに分離すること。
+  workers: 2,
   globalSetup: "./e2e/global-setup.ts",
   // 全テスト後に、この run が作ったテストユーザーをローカル D1 から削除する
   // (run スコープ + serverId スコープで並行 run / 他 mailosaur サーバーを巻き込まない)。
