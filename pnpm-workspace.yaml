@@ -23,6 +23,23 @@ overrides:
   # adapter の互換宣言 (^0.28.17 || ^0.29.0) の ^0.29 が誤り。symbol が再公開されるか
   # adapter が deep import / 自前定義に変わるまで、互換のある 0.28.17 に固定する。
   kysely: 0.28.17
+  # @cloudflare/vite-plugin > miniflare (と wrangler > miniflare) が undici 7.x 系を pin する。
+  # 高/中の advisory が 7.29.0 未満に集中しているため patch 版に強制 up する。
+  # - high: TLS certificate validation bypass / WebSocket DoS /
+  #         cross-origin request routing / cross-user information disclosure
+  # - moderate: HTTP header injection
+  # miniflare は undici 8.x 未検証なので、上限 <8 を付けて 7.x 系内に閉じる。
+  undici: ">=7.29.0 <8"
+  # 同じく miniflare 経由の sharp。libvips 由来の脆弱性 (high) が <0.35.0 に該当。
+  sharp: ">=0.35.0"
+  # @storybook/react-vite > ... > minimatch(10.x) > brace-expansion。
+  # DoS (exponential-time / unbounded expansion) 系 3 件が <5.0.9 に該当。
+  # lockfile 上 brace-expansion は 5.x 系のみ (minimatch@10 が ^5 を要求) なので major 跨ぎは起きない。
+  brace-expansion: ">=5.0.9"
+  # vite > postcss 経路。Path Traversal in Previous Source Map (high) が <=8.5.17 に該当。
+  # 8.5.18+ は nanoid ^3.3.17 を要求するので、nanoid の DoS advisory (<3.3.18) も
+  # 3.x 系内の解決で同時に解消する (nanoid 側の override は不要)。
+  postcss: ">=8.5.23"
 
 # --- サプライチェーン強化 ---
 
@@ -48,41 +65,11 @@ minimumReleaseAge: 10080
 #       入るたび、同 PR で再生成・全置換する。age を過ぎた版は次の lockfile 更新時に
 #       リストから自然に消える (再生成すれば出力されないため)。
 #
-# 現状の中身は esbuild override (>=0.28.1, GHSA-gv7w-rqvm-qjhr / GHSA-g7r4-m6w7-qqqr の
-# patch) が強制した 0.28.1 (platform 別 optionalDeps 含む) と、頻繁に publish される
-# browserslist 系データ (caniuse-lite 等)。esbuild 0.28.1 は age 超過後の再生成で消える。
+# 現状の中身は postcss override (>=8.5.23) が要求する nanoid 3.x のみ。nanoid 3.3.18 は
+# DoS advisory (<3.3.18) の patch 版だが publish 直後で age を満たさないため一時的に免除する。
+# 旧 esbuild 0.28.1 / browserslist 系のエントリは age を超過したので再生成で消えた。
 minimumReleaseAgeExclude:
-  - "@esbuild/aix-ppc64@0.28.1"
-  - "@esbuild/android-arm@0.28.1"
-  - "@esbuild/android-arm64@0.28.1"
-  - "@esbuild/android-x64@0.28.1"
-  - "@esbuild/darwin-arm64@0.28.1"
-  - "@esbuild/darwin-x64@0.28.1"
-  - "@esbuild/freebsd-arm64@0.28.1"
-  - "@esbuild/freebsd-x64@0.28.1"
-  - "@esbuild/linux-arm@0.28.1"
-  - "@esbuild/linux-arm64@0.28.1"
-  - "@esbuild/linux-ia32@0.28.1"
-  - "@esbuild/linux-loong64@0.28.1"
-  - "@esbuild/linux-mips64el@0.28.1"
-  - "@esbuild/linux-ppc64@0.28.1"
-  - "@esbuild/linux-riscv64@0.28.1"
-  - "@esbuild/linux-s390x@0.28.1"
-  - "@esbuild/linux-x64@0.28.1"
-  - "@esbuild/netbsd-arm64@0.28.1"
-  - "@esbuild/netbsd-x64@0.28.1"
-  - "@esbuild/openbsd-arm64@0.28.1"
-  - "@esbuild/openbsd-x64@0.28.1"
-  - "@esbuild/openharmony-arm64@0.28.1"
-  - "@esbuild/sunos-x64@0.28.1"
-  - "@esbuild/win32-arm64@0.28.1"
-  - "@esbuild/win32-ia32@0.28.1"
-  - "@esbuild/win32-x64@0.28.1"
-  - "baseline-browser-mapping@2.10.36"
-  - "caniuse-lite@1.0.30001799"
-  - "electron-to-chromium@1.5.372"
-  - "enhanced-resolve@5.24.0"
-  - "esbuild@0.28.1"
+  - "nanoid@3.3.18"
 
 # 新規 install/add で ^/~ を付けず exact 版で書く。
 # 既存の ^ は scripts/pin-deps.mjs で別途剥がす。

@@ -104,11 +104,22 @@ TypeScript 6 系。テストは Vitest (unit) / Playwright (E2E) / Storybook + t
   以前は `--config.minimum-release-age=0` で生まれる state file の drift を許容するため
   `warn` に下げていたが、minimumReleaseAgeExclude で young version を policy 例外にする
   方式に切り替えたため override 不要となり error に復帰
-- **`overrides`**:
-  - `esbuild: '>=0.24.3'` — GHSA-67mh-4wv8-2f99 (dev server リクエスト偽装) patch
+- **`overrides`** (理由の詳細は `pnpm-workspace.yaml` のコメント):
+  - `esbuild: '>=0.28.1'` — dev server リクエスト偽装ほかの patch
   - `ws: '>=8.20.1'` — GHSA-58qx-3vcg-4xpx (uninitialized memory disclosure) patch
+  - `undici: '>=7.29.0 <8'` — miniflare 経由。TLS 検証バイパス / WebSocket DoS 等の patch。
+    miniflare が undici 8.x 未検証のため上限を付けて 7.x 系に閉じる
+  - `sharp: '>=0.35.0'` — miniflare 経由。libvips 由来の脆弱性 patch
+  - `brace-expansion: '>=5.0.9'` — storybook > minimatch 経由。DoS 系 3 件の patch
+  - `postcss: '>=8.5.23'` — vite 経由。source map path traversal patch。
+    8.5.18+ が `nanoid ^3.3.17` を要求するので nanoid の DoS advisory も同時に解消する
+  - `kysely: 0.28.17` — 脆弱性ではなく互換性 pin (`@better-auth/kysely-adapter` の
+    `^0.29.0` 宣言が誤りで、0.29 では build が `[MISSING_EXPORT]` で落ちる)
 
-  → transitive 経路の脆弱性 patch を保つため、勝手に外さない。
+  → transitive 経路の脆弱性 patch を保つため、勝手に外さない。CI の `audit` job は
+  `pnpm install` より前に `pnpm audit` を走らせるので、**新しい advisory が公開されると
+  コード変更が無くても main / 全 PR が同時に赤くなる**。その場合は直 dep の bump か
+  ここへの override 追加で解消し、`minimumReleaseAgeExclude` を再生成する。
 
 GitHub Actions 側も同じ思想で、`.github/workflows/*.yml` の `uses:` は **full SHA + `# vX.Y.Z` comment** で pin する。
 新規 action を足した時は `pinact run` でローカル変換、CI の audit job で `pinact --check` 相当の verify が走り、
