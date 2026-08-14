@@ -85,7 +85,7 @@ jobs:
       # ci.yml の e2e task と同じ 1Password 注入パターン。OP_SERVICE_ACCOUNT_TOKEN は
       # inject step 限定の env で参照し、後続 step には露出させない。
       - name: Install 1Password CLI
-        uses: 1password/install-cli-action@8d006a0d0a4fd505af7f7ce589e7f768385ff5e4 # v3.0.0
+        uses: 1password/install-cli-action@1a3160d5e9de1ae0803eaa08a88746f5ae3daa50 # v4.1.0
 
       - name: Inject .dev.vars from 1Password
         env:
