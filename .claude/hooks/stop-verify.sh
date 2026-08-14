@@ -37,22 +37,15 @@ sweep_project_runtime() {
   done
 }
 
-# storybook / vp dev は setsid で新 session に隔離し、kill -- -PGID で
-# workerd 子も含めてまとめて殺す。trap 漏れに備えて sweep を最後に呼ぶ。
-SB_PID=""
+# vp dev は setsid で新 session に隔離し、kill -- -PGID で workerd 子も含めて
+# まとめて殺す。trap 漏れに備えて sweep を最後に呼ぶ。
 VP_PID=""
 cleanup() {
-  local pgid pid
-  for pgid in "$SB_PID" "$VP_PID"; do
-    [ -n "$pgid" ] && kill -TERM -- "-$pgid" 2>/dev/null
-  done
+  [ -n "$VP_PID" ] || { sweep_project_runtime; return; }
+  kill -TERM -- "-$VP_PID" 2>/dev/null
   sleep 2
-  for pgid in "$SB_PID" "$VP_PID"; do
-    [ -n "$pgid" ] && kill -KILL -- "-$pgid" 2>/dev/null
-  done
-  for pid in "$SB_PID" "$VP_PID"; do
-    [ -n "$pid" ] && wait "$pid" 2>/dev/null
-  done
+  kill -KILL -- "-$VP_PID" 2>/dev/null
+  wait "$VP_PID" 2>/dev/null
   sweep_project_runtime
 }
 trap cleanup EXIT
@@ -89,23 +82,14 @@ if ! out=$(./node_modules/.bin/vp test --run 2>&1); then
 $(printf '%s' "$out" | trunc)")
 fi
 
-# === 3. Storybook test-runner ===
-setsid ./node_modules/.bin/storybook dev -p 6006 --ci --no-open > /tmp/claude-sb-dev.log 2>&1 < /dev/null &
-SB_PID=$!
-if wait_for http://localhost:6006 90; then
-  if ! out=$(./node_modules/.bin/test-storybook 2>&1); then
-    failures+=("=== test-storybook failed ===
+# === 3. Storybook stories (Vitest browser mode) ===
+# `pnpm test-storybook` = `vitest run --project storybook`。Vitest が portable-story を
+# 直接 render するので、旧 @storybook/test-runner のような storybook dev サーバの起動も
+# `node_modules/.bin/test-storybook` (もう存在しない bin) も不要。
+if ! out=$(./node_modules/.bin/vitest run --project storybook 2>&1); then
+  failures+=("=== test-storybook failed ===
 $(printf '%s' "$out" | trunc)")
-  fi
-else
-  failures+=("=== storybook server did not come up within 90s ===
-$(tail -n 50 /tmp/claude-sb-dev.log 2>&1)")
 fi
-kill -TERM -- "-$SB_PID" 2>/dev/null
-sleep 1
-kill -KILL -- "-$SB_PID" 2>/dev/null
-wait "$SB_PID" 2>/dev/null
-SB_PID=""
 
 # === 4. Playwright e2e ===
 # playwright.config.ts の webServer は `pnpm dev` で pnpm 経由になるので、
