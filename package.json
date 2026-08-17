@@ -62,7 +62,7 @@
     "better-sqlite3": "12.10.0",
     "chromatic": "17.2.0",
     "daisyui": "5.7.16",
-    "dependency-cruiser": "17.4.3",
+    "dependency-cruiser": "18.1.1",
     "drizzle-kit": "0.31.10",
     "knip": "6.32.0",
     "mailosaur": "11.1.1",
