@@ -59,7 +59,7 @@
     "@vitejs/plugin-react": "6.0.5",
     "@vitest/browser": "4.1.10",
     "@vitest/browser-playwright": "4.1.10",
-    "better-sqlite3": "12.10.0",
+    "better-sqlite3": "12.11.1",
     "chromatic": "17.2.0",
     "daisyui": "5.7.16",
     "dependency-cruiser": "17.4.3",
