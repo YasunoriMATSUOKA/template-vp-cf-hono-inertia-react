@@ -50,7 +50,7 @@ jobs:
         run: pnpm build-storybook
 
       - name: Publish to Chromatic
-        uses: chromaui/action@1db61b73b7919508ee8e62336f04bd0aed6da756 # v17.4.1
+        uses: chromaui/action@4cc98810d00b34b8f9e89d454d64a8ac3d088340 # v18.7.1
         with:
           projectToken: ${{ secrets.CHROMATIC_STORYBOOK_PROJECT_TOKEN }}
           # build-storybook の出力を指す (action 側で再ビルドさせない)
