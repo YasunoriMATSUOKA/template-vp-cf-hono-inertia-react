@@ -106,8 +106,8 @@ importers:
         specifier: 11.1.1
         version: 11.1.1(@types/node@26.1.2)
       nodemailer:
-        specifier: 9.0.4
-        version: 9.0.4
+        specifier: 9.1.1
+        version: 9.1.1
       storybook:
         specifier: 10.5.7
         version: 10.5.7(@types/react@19.2.18)(react@19.2.8)(vite-plus@0.2.8(@types/node@26.1.2)(@vitest/browser-playwright@4.1.10(playwright@1.62.1)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.2)(yaml@2.9.0))(vitest@4.1.10))(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.2)(typescript@6.0.3)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.2)(yaml@2.9.0))(yaml@2.9.0))
@@ -3060,8 +3060,8 @@ packages:
     resolution: {integrity: sha512-D9UOmYG3UH1V+ENW56t5QXBwJw1YEY18ruVeus89Rw+SyIgjPkCO84bRzO3uNIYosJbNwiabWVn48o3uJLjxFQ==}
     engines: {node: '>=18'}
 
-  nodemailer@9.0.4:
-    resolution: {integrity: sha512-LmJNRVRtfSCULxcZpy0Cpg4WWenlUZ9+zbmTO+S7v9wD6XreYLjXRFtDjtV/4F0HT5p1GyZfA0Ux/myxHb18CQ==}
+  nodemailer@9.1.1:
+    resolution: {integrity: sha512-izw9mVKFix6YSnC9eLgV6g1opl9DUlRio9ZNcq+Wu9Ujn2UwF+8Nl0B8nz22kEC+CTZCvinkxwJ0DeFbb6NwcQ==}
     engines: {node: '>=6.0.0'}
 
   obug@2.1.2:
@@ -5824,7 +5824,7 @@ snapshots:
 
   node-releases@2.0.53: {}
 
-  nodemailer@9.0.4: {}
+  nodemailer@9.1.1: {}
 
   obug@2.1.2: {}
 
