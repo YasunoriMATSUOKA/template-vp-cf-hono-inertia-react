@@ -60,7 +60,7 @@
     "@vitest/browser": "4.1.10",
     "@vitest/browser-playwright": "4.1.10",
     "better-sqlite3": "12.10.0",
-    "chromatic": "17.2.0",
+    "chromatic": "18.1.0",
     "daisyui": "5.7.16",
     "dependency-cruiser": "17.4.3",
     "drizzle-kit": "0.31.10",

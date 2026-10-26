@@ -88,8 +88,8 @@ importers:
         specifier: 12.10.0
         version: 12.10.0
       chromatic:
-        specifier: 17.2.0
-        version: 17.2.0(@chromatic-com/playwright@0.14.11(@playwright/test@1.62.1)(@testing-library/dom@10.4.1)(react@19.2.8))
+        specifier: 18.1.0
+        version: 18.1.0(@chromatic-com/playwright@0.14.11(@playwright/test@1.62.1)(@testing-library/dom@10.4.1)(react@19.2.8))
       daisyui:
         specifier: 5.7.16
         version: 5.7.16
@@ -2351,8 +2351,8 @@ packages:
   chownr@1.1.4:
     resolution: {integrity: sha512-jJ0bqzaylmJtVnNgzTeSOs8DPavpbYgEr/b0YL8/2GO3xJEhInFmhKMUnEJQjZumK7KXGFhUy89PrsJWlakBVg==}
 
-  chromatic@17.2.0:
-    resolution: {integrity: sha512-jxuFtNNMuxbVcM2oAAPsa1fDuygt5e1SVJpvTmvSPkVXFQGylFvApsbhDP9a94qI8QMJeUMmts4bXMqrBotWjg==}
+  chromatic@18.1.0:
+    resolution: {integrity: sha512-I9av8lUc5CQRlYzwKpmOG9cwYvZ4AFmTvtHeNrzOMC1353F9xYw45CHpSNIsNKuOiqqmzci9esXQd5akl0fi6w==}
     engines: {node: '>=22.0.0'}
     hasBin: true
     peerDependencies:
@@ -3271,11 +3271,6 @@ packages:
 
   semver@7.8.1:
     resolution: {integrity: sha512-rkVq3IXh+4FDGch+KwzX3aV9W3kO54GyEgpvBzSyctDA6Xtd7RJQV1xmXbeQp5v7+VzLOfVqiutSE6GICgPFvg==}
-    engines: {node: '>=10'}
-    hasBin: true
-
-  semver@7.8.2:
-    resolution: {integrity: sha512-c8jsqUZm3omBOI66G90z1Dyw5z622G8oLG+omfsHBJf3CWQTlOcwOjvOG6wtiNfW6anKm/eA39LMwMtMez2TiQ==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -5339,9 +5334,9 @@ snapshots:
 
   chownr@1.1.4: {}
 
-  chromatic@17.2.0(@chromatic-com/playwright@0.14.11(@playwright/test@1.62.1)(@testing-library/dom@10.4.1)(react@19.2.8)):
+  chromatic@18.1.0(@chromatic-com/playwright@0.14.11(@playwright/test@1.62.1)(@testing-library/dom@10.4.1)(react@19.2.8)):
     dependencies:
-      semver: 7.8.2
+      semver: 7.8.5
     optionalDependencies:
       '@chromatic-com/playwright': 0.14.11(@playwright/test@1.62.1)(@testing-library/dom@10.4.1)(react@19.2.8)
 
@@ -6150,8 +6145,6 @@ snapshots:
   semver@6.3.1: {}
 
   semver@7.8.1: {}
-
-  semver@7.8.2: {}
 
   semver@7.8.5: {}
 
